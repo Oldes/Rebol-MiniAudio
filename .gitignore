@@ -1,0 +1,10 @@
+/*
+!/.gitignore
+!/.github
+!/.editorconfig
+!*.nest
+!/src
+!/test
+!/README.md
+!/LICENSE
+!/ci-test.r3
