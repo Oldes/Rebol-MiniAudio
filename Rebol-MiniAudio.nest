@@ -75,12 +75,23 @@ target-armv7: [
 do %src/miniaudio-rebol-extension.r3 
 
 files: [
+	%src/miniaudio.c
 	%src/miniaudio-commands.c
 	%src/miniaudio-commands-table.c
 	%src/miniaudio-rebol-extension.c
 ]
 
 eggs: [
+	#if Windows? [
+		"Rebol MiniAudio extension: win32_x86" [
+			name: %miniaudio-windows-x86.rebx
+			:target-x86
+		]
+		"Rebol MiniAudio extension: win32_x64" [
+			name: %miniaudio-windows-x64.rebx
+			:target-x64
+		]
+	]
 	#if macOS? [
 		"Rebol MiniAudio extension: macos_x64" [
 			name: %miniaudio-macos-x64
@@ -89,6 +100,14 @@ eggs: [
 		"Rebol MiniAudio extension: macos_arm64" [
 			name: %miniaudio-macos-arm64
 			:target-arm64
+		]
+	]
+	"test" [
+		name: %test
+		flags: only []
+		files: only [
+			%src/miniaudio.c
+			%src/test.c
 		]
 	]
 ]

@@ -140,8 +140,8 @@ extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 
-u32* sound_words;
-u32* arg_words;
+extern u32* sound_words;
+extern u32* arg_words;
 
 enum ext_commands {$enu-commands
 };

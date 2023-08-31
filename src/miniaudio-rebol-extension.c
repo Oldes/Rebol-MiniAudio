@@ -2,8 +2,6 @@
 // Rebol/MiniAudio extension
 // =============================================================================
 
- #define MA_DEBUG_OUTPUT
-#define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio-rebol-extension.h"
 #include "miniaudio.h"
 
@@ -14,6 +12,9 @@ extern MyCommandPointer Command[];
 REBCNT Handle_MASound;
 REBCNT Handle_MANoise;
 REBCNT Handle_MAWaveform;
+
+u32* sound_words;
+u32* arg_words;
 //============================================================================//
 
 static const char* init_block = MINIAUDIO_EXT_INIT_CODE;
