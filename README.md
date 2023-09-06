@@ -1,3 +1,5 @@
+[![Rebol-MiniAudio CI](https://github.com/Oldes/Rebol-MiniAudio/actions/workflows/main.yml/badge.svg)](https://github.com/Oldes/Rebol-MiniAudio/actions/workflows/main.yml)
+
 # Rebol/MiniAudio
 
 [MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.12.2 and higher)
