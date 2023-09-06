@@ -70,6 +70,9 @@ target-armv7: [
 	define: MA_ENABLE_COREAUDIO
 	frameworks: [CoreFoundation CoreAudio AudioToolbox]
 ]
+#if Linux? [
+	cflags: -fPIC
+]
 
 ;- generate main extension header --------------------------------
 do %src/miniaudio-rebol-extension.r3 
@@ -99,6 +102,16 @@ eggs: [
 		]
 		"Rebol MiniAudio extension: macos_arm64" [
 			name: %miniaudio-macos-arm64
+			:target-arm64
+		]
+	]
+	#if Linux? [
+		"Rebol MiniAudio extension:linux_x64" [
+			name: %miniaudio-linux-x64
+			:target-x64
+		]
+		"Rebol MiniAudio extension: linux_arm64" [
+			name: %miniaudio-linux-arm64
 			:target-arm64
 		]
 	]
