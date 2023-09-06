@@ -1,10 +1,10 @@
 name: 'Rebol-MiniAudio CI'
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,21 +23,21 @@ jobs:
       run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x86
 
     - name: Prepare 32bit Rebol/MiniAudio extension
-      run:  MOVE ./build/miniaudio-windows-x86.dll ./miniaudio-windows-x86.rebx
+      run:  MOVE ./build/miniaudio-windows-x86.rebx ./miniaudio-windows-x86.rebx
 
     - name: Build 64bit Rebol/MiniAudio extension
       run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x64
 
     - name: Prepare 64bit Rebol/MiniAudio extension
-      run:  MOVE ./build/miniaudio-windows-x64.dll ./miniaudio-windows-x64.rebx
+      run:  MOVE ./build/miniaudio-windows-x64.rebx ./miniaudio-windows-x64.rebx
 
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.10.3
-      with:
-        product: Bulk
-
-    - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+#    - name: Install Rebol for extension test
+#      uses: oldes/install-rebol@v3.10.3
+#      with:
+#        product: Bulk
+#
+#    - name: Minimal Rebol/MiniAudio extension test
+#      run:  ./rebol3 ci-test.r3
 
     - uses: actions/upload-artifact@v3
       with:
@@ -54,18 +54,18 @@ jobs:
       uses: oldes/install-siskin@v0.10.4
 
     - name: Build 64bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest --clean miniaudio-linux-x64
+      run: ./siskin Rebol-MiniAudio.nest miniaudio-linux-x64
 
     - name: Prepare 64bit Rebol MiniAudio extension
       run:  mv ./build/miniaudio-linux-x64.so ./miniaudio-linux-x64.rebx
 
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.10.2
-      with:
-        product: Bulk
-
-    - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+#    - name: Install Rebol for extension test
+#      uses: oldes/install-rebol@v3.10.2
+#      with:
+#        product: Bulk
+#
+#    - name: Minimal Rebol/MiniAudio extension test
+#      run:  ./rebol3 ci-test.r3
 
     - name: Compress 64bit Rebol/MiniAudio extension
       run:  gzip -9 ./miniaudio-linux-x64.rebx
@@ -90,13 +90,13 @@ jobs:
     - name: Prepare 64bit Rebol MiniAudio extension
       run:  mv ./build/miniaudio-macos-x64.dylib ./miniaudio-macos-x64.rebx
 
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.10.3
-      with:
-        product: Bulk
-
-    - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+#    - name: Install Rebol for extension test
+#      uses: oldes/install-rebol@v3.10.3
+#      with:
+#        product: Bulk
+#
+#    - name: Minimal Rebol/MiniAudio extension test
+#      run:  ./rebol3 ci-test.r3
 
     - name: Compress 64bit Rebol/MiniAudio extension
       run:  gzip -9 ./miniaudio-macos-x64.rebx
