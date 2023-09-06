@@ -104,6 +104,7 @@ format_f32:    5
 white-noise: does [play noise-node 0 0.5]
 }
 
+;@@ TODO: use only one block of words and provide some automatic documentation for handles get/setters
 sound-words: [
 	volume
 	pan
@@ -124,6 +125,8 @@ arg-words: [
 	amplitude
 	frequency
 	format
+	frames
+	time
 
 	resources
 ]

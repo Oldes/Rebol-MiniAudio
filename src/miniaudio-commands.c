@@ -122,6 +122,14 @@ int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_engine_get_volume(engine);
 		break;
+	case W_ARG_FRAMES:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_engine_get_time_in_pcm_frames(engine);
+		break;
+	case W_ARG_TIME:
+		*type = RXT_TIME;
+		arg->int64 = ma_engine_get_time_in_milliseconds(engine) * 1000000;
+		break;
 	default:
 		return PE_BAD_SELECT;	
 	}
@@ -143,6 +151,15 @@ int MAEngine_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		default: 
 			return PE_BAD_SET_TYPE;
 		}
+		break;
+	case W_ARG_FRAMES:
+		if (*type != RXT_INTEGER) return PE_BAD_SET_TYPE;
+		ma_engine_set_time_in_pcm_frames(engine, arg->uint64);
+		break;
+	case W_ARG_TIME:
+		if (*type != RXT_TIME) return PE_BAD_SET_TYPE;
+		if (arg->uint64 < 0) return PE_BAD_SET;
+		ma_engine_set_time_in_milliseconds(engine, arg->uint64 / 1000000);
 		break;
 	default:
 		return PE_BAD_SET;	

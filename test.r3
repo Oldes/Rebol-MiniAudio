@@ -28,6 +28,15 @@ print ["Available sounds:" mold device/resources]
 ;; work in Rebol as usually
 wait 0:0:1
 
+;; for synchronization purposes the global playback time may be accessed and modified
+print ["Device global time in PCM frames:" device/frames "as time:" device/time]
+print  "Modifying global playback time to 44100 PCM frames (1s)"
+device/frames: 44100
+print ["Device global time in PCM frames:" device/frames "as time:" device/time]
+print  "Modifying global playback time to 0:0:2"
+device/time: 0:0:2
+print ["Device global time in PCM frames:" device/frames "as time:" device/time]
+
 ;; stop the music with a fade 5 seconds...
 audio/stop/fade :drums 0:0:5
 
