@@ -22,7 +22,7 @@ drums: audio/play/loop %assets/drumloop.wav
 ;; list resources linked with the playback device...
 print ["Available sounds:" mold device/resources]
 
-;; work in Rebol as usually
+;; work in Rebol as usually, the audio has own thread
 wait 0:0:1
 
 ;; stop the music with a fade 5 seconds...
@@ -38,8 +38,36 @@ wait 1
 sound/pan: -1.0
 audio/play :device/resources/1
 wait 1
+```
 
-;; release the playback device (and all resources)
+#### Using a data-source node...
+```rebol
+a: 0
+b: PI
+with audio [
+    probe wave: waveform-node type_sine 0.5 440.0
+    print ["amplitude:" wave/amplitude "frequency:" wave/frequency]
+    probe sound: play/fade wave 0:0:3 ;; start playing with a fade..
+    ;; modify the wave's parameters while playing...
+    loop 500 [
+        a: a + 0.01
+        b: b + 0.006
+        wave/frequency: 440.0 + (220.0 * ((sin a) * cos b))
+        wait 0.01                                                                                            
+    ]
+    stop/fade sound 0:0:2
+
+    loop 400 [
+        a: a + 0.02
+        b: b + 0.003
+        wave/frequency: 440.0 + (220.0 * ((sin a) * cos b))
+        wait 0.005                                                                                            
+    ]
+]
+```
+
+#### Release the playback device (and all resources)
+```rebol
 release device
 ```
 

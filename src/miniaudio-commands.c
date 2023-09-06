@@ -76,6 +76,7 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 int Common_mold(REBHOB *hob, REBSER *str) {
 	int len;
 	if (!str) return 0;
+	SERIES_TAIL(str) = 0;
 	APPEND_STRING(str, "0#%lx", (unsigned long)hob->data);
 	return len;
 }
@@ -90,7 +91,7 @@ int MAEngine_free(void* hndl) {
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
 
-	printf("release engine: %p\n", hndl);
+	printf("release engine: %p\n", hob->data);
 
 	blk = hob->series;
 	if (blk) {
@@ -153,9 +154,9 @@ int MAEngine_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 int MASound_free(void* hndl) {
 	REBHOB *hob;
 	if (!hndl) return 0;
-	printf("release sound: %p\n", hndl);
-
 	hob = (REBHOB *)hndl;
+	printf("release sound: %p\n", hob->data);
+
 	ma_sound *sound = (ma_sound*)hob->data;
 	ma_sound_uninit(sound);
 	if (hob->series) {
