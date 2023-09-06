@@ -293,7 +293,7 @@ parse commands [
 	]
 ]
 
-try/with [
+try/except [
 	readme: read/string %../README.md
 	readme: clear find/tail readme "## Extension commands:"
 	append readme ajoin [
