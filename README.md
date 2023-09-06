@@ -85,7 +85,7 @@ Initialize a playback device
 Loads a file and returns sound's handle
 * `sound` `[file!]`
 
-#### `play` `:sound` `:vol` `:in`
+#### `play` `:sound`
 Loads a file (if not already loaded) and starts playing it. Returns a sound handle.
 * `sound` `[file! handle!]` Source file or a ma-sound handle
 * `/stream` Do not load the entire sound into memory
@@ -99,7 +99,7 @@ Loads a file (if not already loaded) and starts playing it. Returns a sound hand
 Pause sound playback
 * `sound` `[handle!]`
 
-#### `start` `:sound` `:frames` `:in`
+#### `start` `:sound`
 Start sound playback
 * `sound` `[handle!]`
 * `/loop` Turn looping on
@@ -108,7 +108,7 @@ Start sound playback
 * `/fade`
 * `in` `[integer! time!]` PCM frames or time
 
-#### `stop` `:sound` `:out`
+#### `stop` `:sound`
 Stop sound playback
 * `sound` `[handle!]`
 * `/fade`
@@ -127,7 +127,7 @@ Seek to specified position
 * `frames` `[integer! time!]`
 * `/relative` Relative to the current sound position
 
-#### `noise-node` `:type` `:amplitude` `:val` `:frm`
+#### `noise-node` `:type` `:amplitude`
 Create a noise node data source
 * `type` `[integer!]`
 * `amplitude` `[decimal!]`
@@ -136,7 +136,7 @@ Create a noise node data source
 * `/format` The sample format (default is 2 = signed 16bit float)
 * `frm` `[integer!]` Value betweem 1 - 5
 
-#### `waveform-node` `:type` `:amplitude` `:frequency` `:frm`
+#### `waveform-node` `:type` `:amplitude` `:frequency`
 
 * `type` `[integer!]`
 * `amplitude` `[decimal!]`

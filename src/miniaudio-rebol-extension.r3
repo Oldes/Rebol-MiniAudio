@@ -256,13 +256,13 @@ write %miniaudio-commands-table.c  reword :ctable self
 doc: clear ""
 hdr: clear ""
 arg: clear ""
-cmd: desc: a: t: s: readme: none
+cmd: desc: a: t: s: readme: r: none
 parse commands [
 	any [
 		quote init-words: skip
 		|
 		set cmd: set-word! into [
-			(clear hdr clear arg)
+			(clear hdr clear arg r: none)
 			(append hdr ajoin [LF LF "#### `" cmd "`"])
 			set desc: opt string!
 			any [
@@ -270,16 +270,16 @@ parse commands [
 				set t opt block!
 				set s opt string!
 				(
-					append hdr ajoin [" `:" a "`"]
+					unless r [append hdr ajoin [" `:" a "`"]]
 					append arg ajoin [LF "* `" a "`"] 
-					if t [append arg ajoin [" `" mold t "`"] ]
+					if t [append arg ajoin [" `" mold t "`"]]
 					if s [append arg ajoin [" " s]]
 				)
 				|
-				set a refinement!
+				set r refinement!
 				set s opt string!
 				(
-					append arg ajoin [LF "* `/" a "`"] 
+					append arg ajoin [LF "* `/" r "`"] 
 					if s [append arg ajoin [" " s]]
 				)
 			]
