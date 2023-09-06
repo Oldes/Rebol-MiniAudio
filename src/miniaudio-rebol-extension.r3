@@ -132,7 +132,7 @@ arg-words: [
 ]
 
 ;-------------------------------------- ----------------------------------------
-reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module]}
+reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 1.0.0]}
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
