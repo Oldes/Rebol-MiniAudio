@@ -20,13 +20,13 @@ jobs:
       uses: oldes/install-siskin@v0.10.4
 
     - name: Build 32bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x86
+      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x86.rebx
 
     - name: Prepare 32bit Rebol/MiniAudio extension
       run:  MOVE ./build/miniaudio-windows-x86.rebx ./miniaudio-windows-x86.rebx
 
     - name: Build 64bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x64
+      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x64.rebx
 
     - name: Prepare 64bit Rebol/MiniAudio extension
       run:  MOVE ./build/miniaudio-windows-x64.rebx ./miniaudio-windows-x64.rebx
