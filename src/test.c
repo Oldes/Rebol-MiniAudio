@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h> // malloc
 
+#if !defined(_WIN32)
+# include <unistd.h>
+# define Sleep(t) sleep(t)
+#endif
+
 ma_engine* pEngine = NULL;
 
 int main(int argc, char** argv)
@@ -25,8 +30,11 @@ int main(int argc, char** argv)
 	printf("type: %i\n", pNoise->config.type); // here it is zero!
 	ma_sound_start(pSound);
 	printf("type: %i\n", pNoise->config.type); // here it is zero!
+
+	//ma_sound_set_volume(pSound, 0.01);
+	ma_sound_set_fade_in_pcm_frames(pSound, 0, 1.0, 44100);
 	
-	Sleep(2000);
+	Sleep(2);
 
 	ma_sound_uninit(pSound);
 	ma_noise_uninit(pNoise, NULL);
