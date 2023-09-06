@@ -3,12 +3,12 @@
 // =============================================================================
 
 #include "miniaudio-rebol-extension.h"
-#include "miniaudio.h"
 
 RL_LIB *RL; // Link back to reb-lib from embedded extensions
 
 //==== Globals ===============================================================//
 extern MyCommandPointer Command[];
+REBCNT Handle_MAEngine;
 REBCNT Handle_MASound;
 REBCNT Handle_MANoise;
 REBCNT Handle_MAWaveform;
@@ -18,6 +18,12 @@ u32* arg_words;
 //============================================================================//
 
 static const char* init_block = MINIAUDIO_EXT_INIT_CODE;
+
+int Common_mold(void* hndl, REBSER *ser);
+
+int MAEngine_free(void* hndl);
+int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
+int MAEngine_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 
 int MASound_free(void* hndl);
 int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
@@ -42,7 +48,7 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 	if (MIN_REBOL_VERSION > VERSION(ver[1], ver[2], ver[3])) {
 		debug_print(
 			"Needs at least Rebol v%i.%i.%i!\n",
-		     MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD);
+			 MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD);
 		return 0;
 	}
 	if (!CHECK_STRUCT_ALIGN) {
@@ -52,9 +58,17 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 
 
 	REBHSP spec;
+	spec.mold = Common_mold;
+
+	spec.size      = sizeof(my_engine); // It is MY_, not MA_! 
+	spec.flags     = HANDLE_REQUIRES_HOB_ON_FREE;
+	spec.free      = MAEngine_free;
+	spec.get_path  = MAEngine_get_path;
+	spec.set_path  = MAEngine_set_path;
+	Handle_MAEngine  = RL_REGISTER_HANDLE_SPEC((REBYTE*)"ma-engine", &spec);
 
 	spec.size      = sizeof(ma_sound);
-	spec.flags     = 0;
+	spec.flags     = HANDLE_REQUIRES_HOB_ON_FREE;
 	spec.free      = MASound_free;
 	spec.get_path  = MASound_get_path;
 	spec.set_path  = MASound_set_path;

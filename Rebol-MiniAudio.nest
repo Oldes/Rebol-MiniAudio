@@ -9,7 +9,6 @@ include:  %miniaudio/
 
 compiler: clang
 arch:     x64
-strip:    on
 optimize: 2
 
 define: USE_TRACES
@@ -21,7 +20,8 @@ flag:   shared
 	define: _CRT_SECURE_NO_WARNINGS
 	define: _USE_MATH_DEFINES
 	define: TO_WINDOWS
-	upx: on
+	upx:    on
+	strip:  on
 ]
 #if Linux? [
 	compiler: gcc

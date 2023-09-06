@@ -4,7 +4,8 @@
 !/.editorconfig
 !*.nest
 !/src
-!/test
+!/assets
 !/README.md
 !/LICENSE
 !/ci-test.r3
+!/test.r3

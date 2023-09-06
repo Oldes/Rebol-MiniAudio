@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 24-Aug-2023/12:44:43
+// Date: 6-Sep-2023/9:41:53
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
@@ -650,8 +650,8 @@ enum encoding_opts {
 ************************************************************************
 **
 **  Title: Extension Types (Isolators)
-**  Build: 3.12.0
-**  Date:  24-Aug-2023
+**  Build: 3.12.2
+**  Date:  6-Sep-2023
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -2119,8 +2119,8 @@ typedef void (*REBDOF)(REBVAL *ds);				// DO evaltype dispatch function
 typedef int  (*REBPAF)(REBVAL *ds, REBVAL *p, REBCNT a); // Port action func
 
 typedef int     (*REB_HANDLE_FREE_FUNC)(void *hnd);
+typedef int     (*REB_HANDLE_MOLD_FUNC)(void *hnd, REBSER *ser);
 typedef int     (*REB_HANDLE_EVAL_PATH)(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
-typedef REBSER* (*REB_HANDLE_MOLD_FUNC)(REBSER *mold, void *hnd); //TODO: not used yet!
 
 typedef void (*ANYFUNC)(void *);
 typedef void (*TRYFUNC)(void *);
@@ -2213,14 +2213,17 @@ enum Handle_Flags {
 	HANDLE_CONTEXT_LOCKED = 1 << 5,  // so Rebol will not GC the handle if C side still depends on it
 };
 
+enum Handle_Spec_Flags {
+	HANDLE_REQUIRES_HOB_ON_FREE = 1 << 0
+};
+
 typedef struct Reb_Handle_Spec {
 	REBCNT size;
 	REBFLG flags;
 	REB_HANDLE_FREE_FUNC free;
 	REB_HANDLE_EVAL_PATH get_path;
 	REB_HANDLE_EVAL_PATH set_path;
-	//REB_HANDLE_MOLD_FUNC mold;
-	//REB_HANDLE_QUERY_FUNC query;
+	REB_HANDLE_MOLD_FUNC mold;
 } REBHSP;
 
 typedef struct Reb_Handle_Context {
@@ -3104,8 +3107,8 @@ enum {
 ************************************************************************
 **
 **  Title: Event Types
-**  Build: 3.12.0
-**  Date:  24-Aug-2023
+**  Build: 3.12.2
+**  Date:  6-Sep-2023
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3213,8 +3216,8 @@ enum event_keys {
 ************************************************************************
 **
 **  Title: REBOL Host and Extension API
-**  Build: 3.12.0
-**  Date:  24-Aug-2023
+**  Build: 3.12.2
+**  Date:  6-Sep-2023
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)
@@ -3226,7 +3229,7 @@ enum event_keys {
 // for compatiblity with the reb-lib DLL (using RL_Version.)
 #define RL_VER 3
 #define RL_REV 12
-#define RL_UPD 0
+#define RL_UPD 2
 
 // Compatiblity with the lib requires that structs are aligned using the same
 // method. This is concrete, not abstract. The macro below uses struct
@@ -4068,15 +4071,20 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 /*
 **	REBCNT RL_Register_Handle_Spec(REBYTE *name, REBHSP *spec)
 **
-**	Stores handle's specification (required data size and optional free callback.
+**	Stores handle's specification (required data size and optional callbacks).
+**  It's an extended version of old RL_Register_Handle function.
 **
 **	Returns:
 **		symbol id of the word (whether found or new)
 **		or NOT_FOUND if handle with give ID is already registered.
 **	Arguments:
 **		name      - handle's name as a c-string (length is being detected)
-**		size      - size of needed memory to handle
-**		free_func - custom function to be called when handle is released
+**		spec      - Handle's specification:
+**                  * size of needed memory to handle,
+**                  * reserved flags
+**                  * release function
+**                  * get path accessor
+**                  * set path accessor
 **
 */
 
