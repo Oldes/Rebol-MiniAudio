@@ -296,10 +296,10 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 
 	case W_SOUND_START:
 	case W_SOUND_STOP:
+		if (arg->int64 < 0) return PE_BAD_SET; // allow only positive time
 		if   (*type == RXT_INTEGER) frames = abs_sound_frames(arg, sound);
 		else if (*type == RXT_TIME) frames = abs_sound_time_to_frames(arg, sound);
 		else return PE_BAD_SET_TYPE;
-		if (frames < 0) frames = 0;
 		if (word == W_SOUND_START)
 			ma_sound_set_start_time_in_pcm_frames(sound, frames);
 		else
