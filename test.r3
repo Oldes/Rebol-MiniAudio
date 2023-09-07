@@ -18,7 +18,14 @@ probe device: audio/init-playback 1
 
 ;; load a sound for later use...
 probe sound: audio/load %assets/zblunk_02.wav
+sound/start: 44100
+print ["Sound will start in" sound/start "frames (1s)..."]
+audio/start sound
+wait 1
+print "Now there should be sound!"
+wait 1
 
+print "Now start a loop..."
 ;; play a looping sound...
 probe drums: audio/play/loop %assets/drumloop.wav
 

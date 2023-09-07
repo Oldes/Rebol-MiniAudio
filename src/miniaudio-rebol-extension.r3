@@ -118,6 +118,8 @@ sound-words: [
 	end?
 	playing?
 	file
+	start
+	stop
 ]
 arg-words: [
 	volume

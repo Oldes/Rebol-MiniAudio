@@ -238,6 +238,15 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		else *type = RXT_NONE;
 		break;
 
+	case W_SOUND_START:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_state_time(sound, ma_node_state_started);
+		break;	
+	case W_SOUND_STOP:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_state_time(sound, ma_node_state_stopped);
+		break;	
+
 	default:
 		return PE_BAD_SELECT;	
 	}
@@ -268,6 +277,29 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
 		ma_sound_set_looping(sound, arg->int32a);
 		break;
+	case W_SOUND_START:
+		if (*type == RXT_INTEGER) {
+			ma_sound_set_start_time_in_pcm_frames(sound, arg->uint64);
+			break;	
+		}
+		else if (*type == RXT_TIME) {
+			if (arg->uint64 < 0) return PE_BAD_SET;
+			ma_sound_set_start_time_in_milliseconds(engine, arg->uint64 / 1000000);
+			break;
+		}
+		return PE_BAD_SET_TYPE;
+	case W_SOUND_STOP:
+		if (*type == RXT_INTEGER) {
+			ma_sound_set_stop_time_in_pcm_frames(sound, arg->uint64);
+			break;	
+		}
+		else if (*type == RXT_TIME) {
+			if (arg->uint64 < 0) return PE_BAD_SET;
+			ma_sound_set_stop_time_in_milliseconds(engine, arg->uint64 / 1000000);
+			break;
+		}
+		return PE_BAD_SET_TYPE;
+
 	default:
 		return PE_BAD_SET;	
 	}

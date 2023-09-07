@@ -85,7 +85,9 @@ enum ma_sound_words {W_SOUND_0,
 	W_SOUND_LOOP,
 	W_SOUND_ENDQ,
 	W_SOUND_PLAYINGQ,
-	W_SOUND_FILE
+	W_SOUND_FILE,
+	W_SOUND_START,
+	W_SOUND_STOP
 };
 enum ma_arg_words {W_ARG_0,
 	W_ARG_VOLUME,
@@ -101,7 +103,7 @@ enum ma_arg_words {W_ARG_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: {Rebol MiniAudio Extension} Type: module]\n"\
+	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 1.0.0]\n"\
 	"init-words: command [sound [block!] noise [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!]]\n"\
@@ -123,7 +125,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"looping: command [\"Set the looping\" sound [handle!] value [logic!]]\n"\
 	"looping?: command [\"Get the looping\" sound [handle!]]\n"\
 	"end?: command [\"Return true if sound ended\" sound [handle!]]\n"\
-	"init-words [volume pan pitch duration cursor frames sample-rate spatialization loop end? playing? file][volume type amplitude frequency format frames time resources]\n"\
+	"init-words [volume pan pitch duration cursor frames sample-rate spatialization loop end? playing? file start stop][volume type amplitude frequency format frames time resources]\n"\
 	"protect/hide 'init-words\n"\
 	"\n"\
 	";; Waveform types\n"\
