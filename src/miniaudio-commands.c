@@ -10,6 +10,7 @@
 #define COMMAND int
 
 #define FRM_IS_HANDLE(n, t)   (RXA_TYPE(frm,n) == RXT_HANDLE && RXA_HANDLE_TYPE(frm, n) == t)
+#define ARG_Is_MAEngine(n)    FRM_IS_HANDLE(n, Handle_MAEngine)
 #define ARG_Is_MASound(n)     FRM_IS_HANDLE(n, Handle_MASound)
 #define ARG_Is_MANoise(n)     FRM_IS_HANDLE(n, Handle_MANoise)
 #define ARG_Is_MAWaveform(n)  FRM_IS_HANDLE(n, Handle_MAWaveform)
@@ -56,10 +57,6 @@ u32 word_playback;
 u32 word_capture;
 
 
-static ma_uint64 time_to_frames(RXIARG *arg, ma_sound *sound) {
-	ma_engine *engine = ma_sound_get_engine(sound);
-	return (arg->uint64 * ma_engine_get_sample_rate(engine)) / 1000000000;
-}
 static ma_uint64 abs_sound_frames(RXIARG *arg, ma_sound *sound) {
 	ma_engine *engine = ma_sound_get_engine(sound);
 	return arg->uint64 + ma_engine_get_time_in_pcm_frames(engine);
@@ -541,7 +538,7 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 	engineConfig = ma_engine_config_init();
 	engineConfig.pDevice          = &engine->device;
 	engineConfig.pResourceManager = &gResourceManager;
-	//engineConfig.noAutoStart      = MA_TRUE;    /* Don't start the engine by default - we'll do that manually below. */
+	engineConfig.noAutoStart      = RXA_REF(frm, 2);
 
 	result = ma_engine_init(&engineConfig, &engine->engine);
 	if (result != MA_SUCCESS) {
@@ -637,61 +634,91 @@ COMMAND cmd_pause(RXIFRM *frm, void *ctx) {
 }
 
 COMMAND cmd_start(RXIFRM *frm, void *ctx) {
-	ma_sound *sound;
+	ma_sound  *sound;
+	my_engine *engine;
+	ma_uint64 sampleRate;
 	REBI64 frame = 0;
-	
-	sound = ARG_MASound(1);
-	if (sound == NULL) return RXR_FALSE;
+	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
+	if (!IS_USED_HOB(hob)) return RXR_FALSE; // already released handle!
 
-	if (RXA_REF(frm, 3)) {
-		if (RXA_TYPE(frm, 4) == RXT_INTEGER) {
-			frame = RXA_INT64(frm, 4);
-		} else {
-			ma_uint64 sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
-			frame = (RXA_TIME(frm, 4) * sampleRate) / 1000000000; // rate is per second
+	if (RXA_HANDLE_TYPE(frm, 1) == Handle_MASound) {
+		sound = ARG_MASound(1);
+		if (sound == NULL) return RXR_FALSE;
+
+		if (RXA_REF(frm, 3)) {
+			if (RXA_TYPE(frm, 4) == RXT_INTEGER) {
+				frame = RXA_INT64(frm, 4);
+			} else {
+				sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
+				frame = (RXA_TIME(frm, 4) * sampleRate) / 1000000000; // rate is per second
+			}
+			if (frame < 0) frame = 0;
 		}
-		if (frame < 0) frame = 0;
-	}
-	
-	ma_sound_set_looping(sound, RXA_REF(frm, 2));
-	ma_sound_seek_to_pcm_frame(sound, frame);
-	ma_sound_start(sound);
+		
+		ma_sound_set_looping(sound, RXA_REF(frm, 2));
+		ma_sound_seek_to_pcm_frame(sound, frame);
+		ma_sound_start(sound);
 
-	if (RXA_REF(frm, 5)) {
-		ma_uint64 fade;
-		switch(RXA_TYPE(frm, 6)) {
-		case RXT_INTEGER:
-			fade = (ma_uint64)RXA_INT64(frm, 6);
-			if (fade > 0) ma_sound_set_fade_in_pcm_frames(sound, 0, 1, fade);
-			break;
-		case RXT_TIME:
-			fade = RXA_TIME(frm, 6) / 1000000; // time in ms
-			if (fade > 0) ma_sound_set_fade_in_milliseconds(sound, 0, 1, fade);
-			break;
+		if (RXA_REF(frm, 5)) {
+			ma_uint64 fade;
+			switch(RXA_TYPE(frm, 6)) {
+			case RXT_INTEGER:
+				fade = (ma_uint64)RXA_INT64(frm, 6);
+				if (fade > 0) ma_sound_set_fade_in_pcm_frames(sound, 0, 1, fade);
+				break;
+			case RXT_TIME:
+				fade = RXA_TIME(frm, 6) / 1000000; // time in ms
+				if (fade > 0) ma_sound_set_fade_in_milliseconds(sound, 0, 1, fade);
+				break;
+			}
 		}
+		return RXR_VALUE;
 	}
-
-	return RXR_VALUE;
+	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAEngine) {
+		engine = (my_engine*)hob->handle;
+		if (RXA_REF(frm, 3)) {
+			if (RXA_INT64(frm, 4) < 0) RXA_INT64(frm, 4) = 0; // only positive values
+			if (RXA_TYPE(frm, 4) == RXT_INTEGER) {
+				frame = RXA_INT64(frm, 4);
+			} else {
+				sampleRate = ma_engine_get_sample_rate(&engine->engine);
+				frame = (RXA_TIME(frm, 4) * sampleRate) / 1000000000; // rate is per second
+			}
+			ma_engine_set_time_in_pcm_frames(&engine->engine, (ma_uint64)frame);
+		}
+		ma_device_start(&engine->device);
+		return RXR_VALUE;
+	}
+	return RXR_FALSE;
 }
 
 COMMAND cmd_stop(RXIFRM *frm, void *ctx) {
-	ma_sound *sound;
+	ma_sound  *sound;
+	my_engine *engine;
 	REBINT type;
 	REBI64 fade;
-	
-	sound = ARG_MASound(1);
-	if (sound == NULL) return RXR_FALSE;
-	
-	switch(RXA_TYPE(frm, 3)) {
-	case RXT_NONE: ma_sound_stop(sound); break;
-	case RXT_INTEGER: ma_sound_stop_with_fade_in_pcm_frames(sound, (ma_uint64)RXA_INT64(frm, 3)); break;
-	case RXT_TIME:
-		fade = RXA_TIME(frm, 3) / 1000000; // time in ms
-		if (fade <= 0) ma_sound_stop(sound);
-		ma_sound_stop_with_fade_in_milliseconds(sound, (ma_uint64)fade);
-		break;
+	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
+	if (!IS_USED_HOB(hob)) return RXR_FALSE; // already released handle!
+
+	if (RXA_HANDLE_TYPE(frm, 1) == Handle_MASound) {
+		sound = (ma_sound*)hob->handle;
+		switch(RXA_TYPE(frm, 3)) {
+		case RXT_NONE: ma_sound_stop(sound); break;
+		case RXT_INTEGER: ma_sound_stop_with_fade_in_pcm_frames(sound, (ma_uint64)RXA_INT64(frm, 3)); break;
+		case RXT_TIME:
+			fade = RXA_TIME(frm, 3) / 1000000; // time in ms
+			if (fade <= 0) ma_sound_stop(sound);
+			ma_sound_stop_with_fade_in_milliseconds(sound, (ma_uint64)fade);
+			break;
+		}
+		return RXR_VALUE;
 	}
-	return RXR_VALUE;
+	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAEngine) {
+		engine = (my_engine*)hob->handle;
+		ma_device_stop(&engine->device);
+		return RXR_VALUE;
+	}
+	return RXR_FALSE;
 }
 
 COMMAND cmd_fade(RXIFRM *frm, void *ctx) {

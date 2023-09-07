@@ -13,7 +13,7 @@ commands: [
 	;test:  ["..."]
 
 	get-devices:   ["Retrive playback/capture device names"]
-	init-playback: ["Initialize a playback device" index [integer!]]
+	init-playback: ["Initialize a playback device" index [integer!] /pause "Don't start it automatically"]
 
 	
 
@@ -35,16 +35,16 @@ commands: [
 	]
 	
 	start: [
-		"Start sound playback"
-		sound [handle!]
-		/loop "Turn looping on"
+		"Start sound or device playback"
+		handle [handle!] "ma-sound or ma-engine handle"
+		/loop "Turn looping on (only for sounds)"
 		/seek "Specify starting position" frames [integer! time!]
-		/fade in [integer! time!] "PCM frames or time"
+		/fade in [integer! time!] "PCM frames or time (only for sounds)"
 	]
 	stop:  [
-		"Stop sound playback"
-		sound [handle!]
-		/fade out [integer! time!] "PCM frames or time"
+		"Stop sound or device playback"
+		handle [handle!] "ma-sound or ma-engine handle"
+		/fade out [integer! time!] "PCM frames or time (only for sounds)"
 	]
 	fade:  [
 		"Fade sound volume"

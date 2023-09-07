@@ -106,12 +106,12 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 1.0.0]\n"\
 	"init-words: command [sound [block!] noise [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
-	"init-playback: command [\"Initialize a playback device\" index [integer!]]\n"\
+	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\"]\n"\
 	"load: command [\"Loads a file and returns sound's handle\" sound [file!]]\n"\
 	"play: command [{Loads a file (if not already loaded) and starts playing it. Returns a sound handle.} sound [file! handle!] \"Source file or a ma-sound handle\" /stream \"Do not load the entire sound into memory\" /loop \"Turn looping on\" /volume vol [percent! decimal!] /fade in [integer! time!] \"PCM frames or time\"]\n"\
 	"pause: command [\"Pause sound playback\" sound [handle!]]\n"\
-	"start: command [\"Start sound playback\" sound [handle!] /loop \"Turn looping on\" /seek \"Specify starting position\" frames [integer! time!] /fade in [integer! time!] \"PCM frames or time\"]\n"\
-	"stop: command [\"Stop sound playback\" sound [handle!] /fade out [integer! time!] \"PCM frames or time\"]\n"\
+	"start: command [\"Start sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /loop \"Turn looping on (only for sounds)\" /seek \"Specify starting position\" frames [integer! time!] /fade in [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
+	"stop: command [\"Stop sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /fade out [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
 	"fade: command [\"Fade sound volume\" sound [handle!] frames [integer! time!] start [percent! decimal!] end [percent! decimal!]]\n"\
 	"seek: command [\"Seek to specified position\" sound [handle!] frames [integer! time!] /relative \"Relative to the current sound position\"]\n"\
 	"noise-node: command [\"Create a noise node data source\" type [integer!] amplitude [decimal!] /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\

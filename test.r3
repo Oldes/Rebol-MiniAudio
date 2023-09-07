@@ -14,17 +14,19 @@ print audio/get-devices
 
 ;; init a playback device (first available)...
 ;; keep the reference to the device handle, else it will be released by GC!
-probe device: audio/init-playback 1
+;; (for test purpose, not starting the playback automatically)
+probe device: audio/init-playback/pause 1
 
 ;; load a sound for later use...
 probe sound: audio/load %assets/zblunk_02.wav
 
-;; reset the playback start time
-device/frames: 0
-
+;; changing the initial playback start time offset in PCM frames
+device/frames: 44100
+;; delay the start of the sound in frames
 sound/start: 44100
-print ["Sound will start in" sound/start "frames (1s)..."]
-audio/start sound ;; this sound will start after 44100 frames!
+print ["Sound will start in" sound/start - device/frames "frames (1s)..."]
+audio/start device ;; finally start the paused playback device
+audio/start sound  ;; this sound will start after 44100 frames!
 wait 1
 print "Now there should be the sound!"
 wait 1

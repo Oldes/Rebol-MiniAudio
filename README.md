@@ -82,6 +82,7 @@ Retrive playback/capture device names
 #### `init-playback` `:index`
 Initialize a playback device
 * `index` `[integer!]`
+* `/pause` Don't start it automatically
 
 #### `load` `:sound`
 Loads a file and returns sound's handle
@@ -101,20 +102,20 @@ Loads a file (if not already loaded) and starts playing it. Returns a sound hand
 Pause sound playback
 * `sound` `[handle!]`
 
-#### `start` `:sound`
-Start sound playback
-* `sound` `[handle!]`
-* `/loop` Turn looping on
+#### `start` `:handle`
+Start sound or device playback
+* `handle` `[handle!]` ma-sound or ma-engine handle
+* `/loop` Turn looping on (only for sounds)
 * `/seek` Specify starting position
 * `frames` `[integer! time!]`
 * `/fade`
-* `in` `[integer! time!]` PCM frames or time
+* `in` `[integer! time!]` PCM frames or time (only for sounds)
 
-#### `stop` `:sound`
-Stop sound playback
-* `sound` `[handle!]`
+#### `stop` `:handle`
+Stop sound or device playback
+* `handle` `[handle!]` ma-sound or ma-engine handle
 * `/fade`
-* `out` `[integer! time!]` PCM frames or time
+* `out` `[integer! time!]` PCM frames or time (only for sounds)
 
 #### `fade` `:sound` `:frames` `:start` `:end`
 Fade sound volume
