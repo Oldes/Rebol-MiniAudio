@@ -18,16 +18,20 @@ probe device: audio/init-playback 1
 
 ;; load a sound for later use...
 probe sound: audio/load %assets/zblunk_02.wav
+
+;; reset the playback start time
+device/frames: 0
+
 sound/start: 44100
 print ["Sound will start in" sound/start "frames (1s)..."]
-audio/start sound
+audio/start sound ;; this sound will start after 44100 frames!
 wait 1
-print "Now there should be sound!"
+print "Now there should be the sound!"
 wait 1
 
-print "Now start a loop..."
 ;; play a looping sound...
-probe drums: audio/play/loop %assets/drumloop.wav
+print "Now start a loop with fast fade-in (0.5 seconds)..."
+probe drums: audio/play/loop/fade %assets/drumloop.wav 0:0:0.5
 
 ;; list resources linked with the playback device...
 print ["Available sounds:" mold device/resources]
@@ -45,12 +49,14 @@ device/time: 0:0:2
 print ["Device global time in PCM frames:" device/frames "as time:" device/time]
 
 ;; stop the music with a fade 5 seconds...
+print "Now stop the loop in 5 seconds fade-out..."
 audio/stop/fade :drums 0:0:5
 
 ;; wait for the sound to fade out...
 wait 5
 
 ;; play already loaded sound...
+sound/pan:  1.0
 audio/play :sound
 wait 1
 

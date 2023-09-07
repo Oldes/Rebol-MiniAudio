@@ -56,6 +56,20 @@ u32 word_playback;
 u32 word_capture;
 
 
+static ma_uint64 time_to_frames(RXIARG *arg, ma_sound *sound) {
+	ma_engine *engine = ma_sound_get_engine(sound);
+	return (arg->uint64 * ma_engine_get_sample_rate(engine)) / 1000000000;
+}
+static ma_uint64 abs_sound_frames(RXIARG *arg, ma_sound *sound) {
+	ma_engine *engine = ma_sound_get_engine(sound);
+	return arg->uint64 + ma_engine_get_time_in_pcm_frames(engine);
+}
+static ma_uint64 abs_sound_time_to_frames(RXIARG *arg, ma_sound *sound) {
+	ma_engine *engine = ma_sound_get_engine(sound);
+	ma_uint64 frames = (arg->uint64 * ma_engine_get_sample_rate(engine)) / 1000000000;
+	return frames + ma_engine_get_time_in_pcm_frames(engine);
+}
+
 static void onSoundEnd(void* hob, ma_sound* pSound) {
 	trace("sound end ");
 }
@@ -256,6 +270,8 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound* sound = (ma_sound*)hob->data;
 	word = RL_FIND_WORD(sound_words, word);
+	ma_uint64 frames;
+
 	switch (word) {
 	case W_SOUND_VOLUME:
 		if (!(*type == RXT_DECIMAL || *type == RXT_PERCENT)) return PE_BAD_SET_TYPE;
@@ -277,28 +293,18 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
 		ma_sound_set_looping(sound, arg->int32a);
 		break;
+
 	case W_SOUND_START:
-		if (*type == RXT_INTEGER) {
-			ma_sound_set_start_time_in_pcm_frames(sound, arg->uint64);
-			break;	
-		}
-		else if (*type == RXT_TIME) {
-			if (arg->uint64 < 0) return PE_BAD_SET;
-			ma_sound_set_start_time_in_milliseconds(engine, arg->uint64 / 1000000);
-			break;
-		}
-		return PE_BAD_SET_TYPE;
 	case W_SOUND_STOP:
-		if (*type == RXT_INTEGER) {
-			ma_sound_set_stop_time_in_pcm_frames(sound, arg->uint64);
-			break;	
-		}
-		else if (*type == RXT_TIME) {
-			if (arg->uint64 < 0) return PE_BAD_SET;
-			ma_sound_set_stop_time_in_milliseconds(engine, arg->uint64 / 1000000);
-			break;
-		}
-		return PE_BAD_SET_TYPE;
+		if   (*type == RXT_INTEGER) frames = abs_sound_frames(arg, sound);
+		else if (*type == RXT_TIME) frames = abs_sound_time_to_frames(arg, sound);
+		else return PE_BAD_SET_TYPE;
+		if (frames < 0) frames = 0;
+		if (word == W_SOUND_START)
+			ma_sound_set_start_time_in_pcm_frames(sound, frames);
+		else
+			ma_sound_set_stop_time_in_pcm_frames(sound, frames);
+		break;
 
 	default:
 		return PE_BAD_SET;	
