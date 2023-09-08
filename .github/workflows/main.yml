@@ -57,7 +57,7 @@ jobs:
       run: ./siskin Rebol-MiniAudio.nest miniaudio-linux-x64
 
     - name: Prepare 64bit Rebol MiniAudio extension
-      run:  mv ./build/miniaudio-linux-x64.so ./miniaudio-ubuntu-x64.rebx
+      run:  mv ./build/miniaudio-linux-x64.so ./miniaudio.rebx
 
     - name: Install Rebol for extension test
       uses: oldes/install-rebol@v3.13.0
@@ -68,7 +68,7 @@ jobs:
       run:  ./rebol3 ci-test.r3
 
     - name: Compress 64bit Rebol/MiniAudio extension
-      run:  gzip -9 ./miniaudio-ubuntu-x64.rebx
+      run:  mv ./miniaudio.rebx ./miniaudio-linux-x64.rebx & gzip -9 ./miniaudio-linux-x64.rebx
 
     - uses: actions/upload-artifact@v3
       with:
