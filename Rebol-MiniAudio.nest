@@ -13,7 +13,7 @@ compiler: clang
 arch:     x64
 optimize: 2
 
-define: USE_TRACES
+;define: USE_TRACES
 
 ;- options common for all Rebol extensions ----------------------
 flag:   shared
