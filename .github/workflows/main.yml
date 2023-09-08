@@ -68,7 +68,9 @@ jobs:
       run:  ./rebol3 ci-test.r3
 
     - name: Compress 64bit Rebol/MiniAudio extension
-      run:  mv ./miniaudio.rebx ./miniaudio-linux-x64.rebx & gzip -9 ./miniaudio-linux-x64.rebx
+      run:  |
+        mv ./miniaudio.rebx ./miniaudio-linux-x64.rebx
+        gzip -9 ./miniaudio-linux-x64.rebx
 
     - uses: actions/upload-artifact@v3
       with:
