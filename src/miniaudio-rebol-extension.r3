@@ -1,9 +1,9 @@
 REBOL [
 	title:  "Rebol/MiniAudio module builder"
 	type:    module
-	date:    6-Sep-2023
+	date:    8-Sep-2023
 	home:    https://github.com/Oldes/Rebol-MiniAudio
-	version: 1.0.0
+	version: 0.11.18.0
 	author: @Oldes
 ]
 
@@ -134,7 +134,7 @@ arg-words: [
 ]
 
 ;-------------------------------------- ----------------------------------------
-reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 1.0.0]}
+reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.0]}
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
