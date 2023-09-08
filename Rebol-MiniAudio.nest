@@ -116,6 +116,10 @@ eggs: [
 			name: %miniaudio-linux-arm64
 			:target-arm64
 		]
+		"Rebol MiniAudio extension: linux_armv7" [
+			name: %miniaudio-linux-armv7
+			:target-armv7
+		]
 	]
 	"test" [
 		name: %test
