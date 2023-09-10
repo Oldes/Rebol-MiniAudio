@@ -57,6 +57,8 @@ u32 word_playback;
 u32 word_capture;
 
 
+
+
 static ma_uint64 abs_sound_frames(RXIARG *arg, ma_sound *sound) {
 	ma_engine *engine = ma_sound_get_engine(sound);
 	return arg->uint64 + ma_engine_get_time_in_pcm_frames(engine);
@@ -81,6 +83,7 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 	standard processing.
 	*/
 	ma_engine_read_pcm_frames((ma_engine*)pDevice->pUserData, pOutput, frameCount, NULL);
+
 }
 
 
@@ -102,8 +105,8 @@ int MAEngine_free(void* hndl) {
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
 
-	printf("release engine: %p\n", hob->data);
-
+	printf("release engine: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
+	UNMARK_HOB(hob);
 	blk = hob->series;
 	if (blk) {
 		int i = blk->tail;
@@ -183,9 +186,18 @@ int MASound_free(void* hndl) {
 	REBHOB *hob;
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
-	printf("release sound: %p\n", hob->data);
+	printf("release sound: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
 
 	ma_sound *sound = (ma_sound*)hob->data;
+
+	// Don't release it, if not referenced but still playing...
+	if(!IS_MARK_HOB(hob) && ma_sound_is_playing(sound)) {
+		puts("preventing sound release?");
+		//MARK_HOB(hob);
+		//return 0;
+	}
+
+	UNMARK_HOB(hob);
 	ma_sound_uninit(sound);
 	if (hob->series) {
 		RESET_SERIES(hob->series);
@@ -637,7 +649,7 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 	ma_sound  *sound;
 	my_engine *engine;
 	ma_uint64 sampleRate;
-	REBI64 frame = 0;
+	ma_uint64 frame = 0;
 	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
 	if (!IS_USED_HOB(hob)) return RXR_FALSE; // already released handle!
 
@@ -645,21 +657,33 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 		sound = ARG_MASound(1);
 		if (sound == NULL) return RXR_FALSE;
 
+		ma_sound_set_looping(sound, RXA_REF(frm, 2));
+
 		if (RXA_REF(frm, 3)) {
+			if (RXA_INT64(frm, 4) < 0) RXA_INT64(frm, 4) = 0;
 			if (RXA_TYPE(frm, 4) == RXT_INTEGER) {
-				frame = RXA_INT64(frm, 4);
+				frame = RXA_UINT64(frm, 4);
 			} else {
 				sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
 				frame = (RXA_TIME(frm, 4) * sampleRate) / 1000000000; // rate is per second
 			}
-			if (frame < 0) frame = 0;
 		}
-		
-		ma_sound_set_looping(sound, RXA_REF(frm, 2));
 		ma_sound_seek_to_pcm_frame(sound, frame);
+
+		if (RXA_REF(frm, 7)) { // /at
+			if (RXA_INT64(frm, 8) < 0) RXA_INT64(frm, 8) = 0;
+			if (RXA_TYPE(frm, 8) == RXT_INTEGER) {
+				frame = RXA_UINT64(frm, 8);
+			} else {
+				sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
+				frame = (RXA_TIME(frm, 8) * sampleRate) / 1000000000; // rate is per second
+			}
+			ma_sound_set_start_time_in_pcm_frames(sound, frame);
+		}
+
 		ma_sound_start(sound);
 
-		if (RXA_REF(frm, 5)) {
+		if (RXA_REF(frm, 5)) { // /fade
 			ma_uint64 fade;
 			switch(RXA_TYPE(frm, 6)) {
 			case RXT_INTEGER:

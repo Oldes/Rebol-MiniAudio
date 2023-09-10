@@ -9,7 +9,7 @@
 #define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 
 #define MIN_REBOL_VER 3
-#define MIN_REBOL_REV 12
+#define MIN_REBOL_REV 13
 #define MIN_REBOL_UPD 1
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)
@@ -103,14 +103,14 @@ enum ma_arg_words {W_ARG_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 1.0.0]\n"\
+	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]\n"\
 	"init-words: command [sound [block!] noise [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\"]\n"\
 	"load: command [\"Loads a file and returns sound's handle\" sound [file!]]\n"\
 	"play: command [{Loads a file (if not already loaded) and starts playing it. Returns a sound handle.} sound [file! handle!] \"Source file or a ma-sound handle\" /stream \"Do not load the entire sound into memory\" /loop \"Turn looping on\" /volume vol [percent! decimal!] /fade in [integer! time!] \"PCM frames or time\"]\n"\
 	"pause: command [\"Pause sound playback\" sound [handle!]]\n"\
-	"start: command [\"Start sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /loop \"Turn looping on (only for sounds)\" /seek \"Specify starting position\" frames [integer! time!] /fade in [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
+	"start: command [\"Start sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /loop \"Turn looping on (only for sounds)\" /seek \"Starting position\" frames [integer! time!] \"PCM frames or time\" /fade \"Fade in the sound\" in [integer! time!] \"PCM frames or time\" /at {Absolute engine time when the sound should be started} time [integer! time!] \"PCM frames or time\"]\n"\
 	"stop: command [\"Stop sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /fade out [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
 	"fade: command [\"Fade sound volume\" sound [handle!] frames [integer! time!] start [percent! decimal!] end [percent! decimal!]]\n"\
 	"seek: command [\"Seek to specified position\" sound [handle!] frames [integer! time!] /relative \"Relative to the current sound position\"]\n"\

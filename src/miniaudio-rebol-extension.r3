@@ -3,7 +3,7 @@ REBOL [
 	type:    module
 	date:    8-Sep-2023
 	home:    https://github.com/Oldes/Rebol-MiniAudio
-	version: 0.11.18.0
+	version: 0.11.18.1
 	author: @Oldes
 ]
 
@@ -36,10 +36,14 @@ commands: [
 	
 	start: [
 		"Start sound or device playback"
-		handle [handle!] "ma-sound or ma-engine handle"
-		/loop "Turn looping on (only for sounds)"
-		/seek "Specify starting position" frames [integer! time!]
-		/fade in [integer! time!] "PCM frames or time (only for sounds)"
+		handle  [handle!] "ma-sound or ma-engine handle"
+		/loop   "Turn looping on (only for sounds)"
+		/seek   "Starting position"
+		 frames [integer! time!] "PCM frames or time"
+		/fade   "Fade in the sound"
+		 in     [integer! time!] "PCM frames or time"
+		/at     "Absolute engine time when the sound should be started"
+		 time   [integer! time!] "PCM frames or time"
 	]
 	stop:  [
 		"Stop sound or device playback"
@@ -134,7 +138,7 @@ arg-words: [
 ]
 
 ;-------------------------------------- ----------------------------------------
-reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.0]}
+reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]}
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
@@ -202,7 +206,7 @@ header: {
 #define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 
 #define MIN_REBOL_VER 3
-#define MIN_REBOL_REV 12
+#define MIN_REBOL_REV 13
 #define MIN_REBOL_UPD 1
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)

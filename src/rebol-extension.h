@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 6-Sep-2023/9:41:53
+// Date: 10-Sep-2023/20:37:33
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
@@ -650,8 +650,8 @@ enum encoding_opts {
 ************************************************************************
 **
 **  Title: Extension Types (Isolators)
-**  Build: 3.12.2
-**  Date:  6-Sep-2023
+**  Build: 3.13.1
+**  Date:  10-Sep-2023
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -2119,7 +2119,7 @@ typedef void (*REBDOF)(REBVAL *ds);				// DO evaltype dispatch function
 typedef int  (*REBPAF)(REBVAL *ds, REBVAL *p, REBCNT a); // Port action func
 
 typedef int     (*REB_HANDLE_FREE_FUNC)(void *hnd);
-typedef int     (*REB_HANDLE_MOLD_FUNC)(void *hnd, REBSER *ser);
+typedef int     (*REB_HANDLE_MOLD_FUNC)(REBHOB *hob, REBSER *ser);
 typedef int     (*REB_HANDLE_EVAL_PATH)(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 
 typedef void (*ANYFUNC)(void *);
@@ -2457,6 +2457,9 @@ typedef struct Reb_All {
 # endif
 #endif
 
+// RXIARG has 16bytes and so there is room only for 15 args, because
+// the first RXIARG in the RXIFRM contains types of all used command args.
+#define MAX_RXI_ARGS 15
 
 /* Prefix naming conventions:
 
@@ -2479,10 +2482,10 @@ typedef struct Reb_All {
 typedef union rxi_arg_val {
 	void *addr;
 	i64    int64;
-    u64    uint64;
+	u64    uint64;
 	double dec64;
 	REBXYF pair;
-	REBYTE bytes[8];
+	REBYTE bytes[MAX_RXI_ARGS+1];
 	struct {
 		i32 int32a;
 		i32 int32b;
@@ -2528,7 +2531,7 @@ typedef union rxi_arg_val {
 
 // Command function call frame:
 typedef struct rxi_cmd_frame {
-	RXIARG args[8];	// arg values (128 bits each)
+	RXIARG args[MAX_RXI_ARGS+1];	// arg values (128 bits each)
 } RXIFRM;
 
 typedef struct rxi_cmd_context {
@@ -2549,6 +2552,7 @@ typedef int (*RXICAL)(int cmd, RXIFRM *args, REBCEC *ctx);
 
 #define RXA_INT64(f,n)          (RXA_ARG(f,n).int64)
 #define RXA_INT32(f,n)          (i32)(RXA_ARG(f,n).int64)
+#define RXA_UINT64(f,n)         (RXA_ARG(f,n).uint64)
 #define RXA_DEC64(f,n)          (RXA_ARG(f,n).dec64)
 #define RXA_LOGIC(f,n)          (RXA_ARG(f,n).int32a)
 #define RXA_CHAR(f,n)           (RXA_ARG(f,n).int32a)
@@ -3108,8 +3112,8 @@ enum {
 ************************************************************************
 **
 **  Title: Event Types
-**  Build: 3.12.2
-**  Date:  6-Sep-2023
+**  Build: 3.13.1
+**  Date:  10-Sep-2023
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3217,8 +3221,8 @@ enum event_keys {
 ************************************************************************
 **
 **  Title: REBOL Host and Extension API
-**  Build: 3.12.2
-**  Date:  6-Sep-2023
+**  Build: 3.13.1
+**  Date:  10-Sep-2023
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)
@@ -3229,8 +3233,8 @@ enum event_keys {
 // These constants are created by the release system and can be used to check
 // for compatiblity with the reb-lib DLL (using RL_Version.)
 #define RL_VER 3
-#define RL_REV 12
-#define RL_UPD 2
+#define RL_REV 13
+#define RL_UPD 1
 
 // Compatiblity with the lib requires that structs are aligned using the same
 // method. This is concrete, not abstract. The macro below uses struct

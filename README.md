@@ -106,10 +106,12 @@ Pause sound playback
 Start sound or device playback
 * `handle` `[handle!]` ma-sound or ma-engine handle
 * `/loop` Turn looping on (only for sounds)
-* `/seek` Specify starting position
-* `frames` `[integer! time!]`
-* `/fade`
-* `in` `[integer! time!]` PCM frames or time (only for sounds)
+* `/seek` Starting position
+* `frames` `[integer! time!]` PCM frames or time
+* `/fade` Fade in the sound
+* `in` `[integer! time!]` PCM frames or time
+* `/at` Absolute engine time when the sound should be started
+* `time` `[integer! time!]` PCM frames or time
 
 #### `stop` `:handle`
 Stop sound or device playback

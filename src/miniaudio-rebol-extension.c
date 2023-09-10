@@ -19,7 +19,7 @@ u32* arg_words;
 
 static const char* init_block = MINIAUDIO_EXT_INIT_CODE;
 
-int Common_mold(void* hndl, REBSER *ser);
+int Common_mold(REBHOB *hob, REBSER *ser);
 
 int MAEngine_free(void* hndl);
 int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
