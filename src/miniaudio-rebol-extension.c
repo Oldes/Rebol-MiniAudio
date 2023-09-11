@@ -13,8 +13,8 @@ REBCNT Handle_MASound;
 REBCNT Handle_MANoise;
 REBCNT Handle_MAWaveform;
 
-u32* sound_words;
 u32* arg_words;
+u32* type_words;
 //============================================================================//
 
 static const char* init_block = MINIAUDIO_EXT_INIT_CODE;

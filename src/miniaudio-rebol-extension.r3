@@ -9,7 +9,7 @@ REBOL [
 
 ;- all extension command specifications ----------------------------------------
 commands: [
-	init-words:    [sound [block!] noise [block!]] ;; used internaly only!
+	init-words:    [args [block!] type [block!]] ;; used internaly only!
 	;test:  ["..."]
 
 	get-devices:   ["Retrive playback/capture device names"]
@@ -89,6 +89,7 @@ commands: [
 	looping:  ["Set the looping" sound [handle!] value [logic!]]
 	looping?: ["Get the looping" sound [handle!]]
 	end?:     ["Return true if sound ended" sound [handle!]]
+
 ]
 
 ext-values: {
@@ -108,42 +109,103 @@ format_f32:    5
 white-noise: does [play noise-node 0 0.5]
 }
 
-;@@ TODO: use only one block of words and provide some automatic documentation for handles get/setters
-sound-words: [
-	volume
-	pan
-	pitch
-	duration
-	cursor
-	frames
-	sample-rate
-	spatialization
-	loop
-	end?
-	playing?
-	file
-	start
-	stop
+handles: make map! [
+	ma-sound: [
+		"MiniAudio sound object"
+		;NAME          GET       SET                 DESCRIPTION
+		volume         decimal!  [integer! decimal! percent!] "Sound volume"
+		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
+		pitch          decimal!   decimal!           "Sound pitch"
+		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
+		cursor         integer!  [integer! time!]    "Sound playback position in PCM frames"
+		time           time!      time!              "Sound playback position as time"
+		duration       time!      none               "Sound duration in time"
+		frames         integer!   none               "Sound length in PCM frames"
+		sample-rate    integer!   none               "Number of samples per second"
+		spatialize     logic!     logic!             "3D spatialization state"
+		is-looping     logic!     logic!             "Whether sound is looping"
+		is-playing     logic!     logic!             "Whether sound is playing"
+		at-end         logic!     none               "Whether sound is at end"
+		start          integer!  [integer! time!]    "Absolute timer when the sound should be started (frames or time)"
+		stop           integer!  [integer! time!]    "Absolute timer when the sound should be stopped (frames or time)"
+		x              decimal!  [integer! decimal!] "Sound X position"
+		y              decimal!  [integer! decimal!] "Sound Y position"
+		z              decimal!  [integer! decimal!] "Sound Z position"
+		source        [file! handle!] none           "Sound source as a loaded file or data source node"
+	]
+	ma-engine: [
+		"MiniAudio device engine"
+		volume         decimal!  [integer! decimal! percent!] "Global volume"
+		cursor         integer!  [integer! time!]    "Engine playback position in PCM frames"
+		time           time!      time!              "Engine playback position as time"
+		resources      block!     none               "Used engine resources (sounds, nodes..)"
+	]
+	ma-noise: [
+		"MiniAudio noise generator"
+		amplitude      decimal!   decimal!           "Maximum value of the noise signal"
+		format         word!      none               "f32, s16, s24, s32, u8"
+		type           word!      none               "white, pink or brownian"
+	]
+	ma-waweform: [
+		"MiniAudio sine, square, triangle and sawtooth waveforms generator"
+		amplitude      decimal!   decimal!           "Signal amplitude"
+		frequency      decimal!   decimal!           "Signal frequency in hertzs"
+		format         word!      none               "f32, s16, s24, s32, u8"
+		type           word!      none               "sine,	square, triangle or sawtooth"
+	]
 ]
-arg-words: [
-	volume
-	type
-	amplitude
-	frequency
-	format
-	frames
-	time
 
-	resources
+arg-words:   copy []
+handles-doc: copy {}
+
+foreach [name spec] handles [
+	append handles-doc ajoin [
+		LF LF "#### __" uppercase form name "__ - " spec/1 LF
+		LF "| Refinement      | Gets               | Sets                         | Description"
+		LF "|-----------------|--------------------|------------------------------|------------"
+	]
+	foreach [name gets sets desc] next spec [
+		append handles-doc rejoin [
+			LF
+			#"|" pad name 17
+			#"|" pad gets 20
+			#"|" pad sets 30
+			#"|" desc
+		]
+		append arg-words name
+	]
 ]
+;print handles-doc
+arg-words: unique arg-words
+
+type-words: [
+	;@@ Order is important!
+	;- noise types
+	white
+	pink
+	brownian
+	;- waveform types
+	sine
+	square
+	triangle
+	sawtooth
+	;- format types
+	f32
+	s16
+	s24
+	s32
+	u8
+]
+
 
 ;-------------------------------------- ----------------------------------------
 reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]}
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
-ma-sound-words: "enum ma_sound_words {W_SOUND_0"
+
 ma-arg-words: "enum ma_arg_words {W_ARG_0"
+ma-type-words: "enum ma_type_words {W_TYPE_0"
 
 ;- generate C and Rebol code from the command specifications -------------------
 foreach [name spec] commands [
@@ -162,23 +224,24 @@ foreach [name spec] commands [
 ]
 
 ;- additional Rebol initialization code ----------------------------------------
-foreach word sound-words [
-	word: uppercase form word
-	replace/all word #"-" #"_"
-	replace/all word #"?" #"Q"
-	append ma-sound-words ajoin [",^/^-W_SOUND_" word]
-]
 
 foreach word arg-words [
 	word: uppercase form word
 	replace/all word #"-" #"_"
+	replace/all word #"?" #"Q"
 	append ma-arg-words ajoin [",^/^-W_ARG_" word]
 ]
 
-append ma-sound-words "^/};"
+foreach word type-words [
+	word: uppercase form word
+	replace/all word #"-" #"_"
+	append ma-type-words ajoin [",^/^-W_TYPE_" word]
+]
+
 append ma-arg-words "^/};"
+append ma-type-words "^/};"
 append reb-code ajoin [{
-init-words } mold/flat sound-words mold/flat arg-words {
+init-words } mold/flat arg-words mold/flat type-words {
 protect/hide 'init-words
 } ext-values
 ]
@@ -221,15 +284,16 @@ extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 
-extern u32* sound_words;
 extern u32* arg_words;
+extern u32* type_words;
 
 enum ext_commands {$enu-commands
 };
 
 $cmd-declares
-$ma-sound-words
+
 $ma-arg-words
+$ma-type-words
 
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
@@ -307,6 +371,9 @@ try/except [
 	readme: clear find/tail readme "## Extension commands:"
 	append readme ajoin [
 		LF doc
+		LF LF
+		LF "## Used handles and its getters / setters" 
+		handles-doc
 		LF LF
 		LF "## Other extension values:"
 		LF "```rebol"

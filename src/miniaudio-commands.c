@@ -53,11 +53,6 @@ ma_resource_manager gResourceManager;
 
 REBHOB* pEngineHob = NULL;
 
-u32 word_playback;
-u32 word_capture;
-
-
-
 
 static ma_uint64 abs_sound_frames(RXIARG *arg, ma_sound *sound) {
 	ma_engine *engine = ma_sound_get_engine(sound);
@@ -207,68 +202,97 @@ int MASound_free(void* hndl) {
 }
 int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound* sound = (ma_sound*)hob->data;
-	word = RL_FIND_WORD(sound_words, word);
+	word = RL_FIND_WORD(arg_words, word);
 	ma_uint64 frames;
+	ma_uint32 sampleRate;
+	ma_vec3f pos;
+
 	switch (word) {
-	case W_SOUND_VOLUME:
+	case W_ARG_VOLUME:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_volume(sound);
 		break;
-	case W_SOUND_PAN:
+	case W_ARG_POSITION:
+		*type = RXT_PAIR;
+		pos = ma_sound_get_position(sound);
+		arg->dec32a = pos.x;
+		arg->dec32b = pos.y;
+		break;
+	case W_ARG_PAN:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_pan(sound);
 		break;
-	case W_SOUND_PITCH:
+	case W_ARG_PITCH:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_pitch(sound);
 		break;
-	case W_SOUND_CURSOR:
+	case W_ARG_CURSOR:
 		*type = RXT_INTEGER;
 		ma_sound_get_cursor_in_pcm_frames(sound, &frames);
 		arg->int64 = frames;
 		break;
-	case W_SOUND_FRAMES:
+	case W_ARG_DURATION:
+		*type = RXT_TIME;
+		ma_sound_get_length_in_pcm_frames(sound, &frames);
+		sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
+		arg->uint64 = (frames * 1000000000) / sampleRate;
+		break;
+	case W_ARG_FRAMES:
 		*type = RXT_INTEGER;
 		ma_sound_get_length_in_pcm_frames(sound, &frames);
 		arg->int64 = frames;
 		break;
-	case W_SOUND_SAMPLE_RATE:
+	case W_ARG_SAMPLE_RATE:
 		*type = RXT_INTEGER;
 		arg->int64 = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
 		break;
-	case W_SOUND_SPATIALIZATION:
+	case W_ARG_SPATIALIZE:
 		*type = RXT_LOGIC;
 		arg->int32a = ma_sound_is_spatialization_enabled(sound);
 		break;
-	case W_SOUND_LOOP:
+	case W_ARG_IS_LOOPING:
 		*type = RXT_LOGIC;
 		arg->int32a = ma_sound_is_looping(sound);
 		break;
-	case W_SOUND_ENDQ:
+	case W_ARG_AT_END:
 		*type = RXT_LOGIC;
 		arg->int32a = ma_sound_at_end(sound);
 		break;
-	case W_SOUND_PLAYINGQ:
+	case W_ARG_IS_PLAYING:
 		*type = RXT_LOGIC;
 		arg->int32a = ma_sound_is_playing(sound);
 		break;
-	case W_SOUND_FILE:
+	case W_ARG_SOURCE:
 		if (hob->series) {
-			*type = RXT_FILE;
-			arg->series = hob->series;
-			arg->index = 0;
+			*type = RL_GET_VALUE(hob->series, 0, arg);
 		}
 		else *type = RXT_NONE;
 		break;
 
-	case W_SOUND_START:
+	case W_ARG_START:
 		*type = RXT_INTEGER;
 		arg->uint64 = ma_node_get_state_time(sound, ma_node_state_started);
 		break;	
-	case W_SOUND_STOP:
+	case W_ARG_STOP:
 		*type = RXT_INTEGER;
 		arg->uint64 = ma_node_get_state_time(sound, ma_node_state_stopped);
-		break;	
+		break;
+
+	case W_ARG_X:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_get_position(sound);
+		arg->dec64 = pos.x;
+		break;
+	case W_ARG_Y:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_get_position(sound);
+		arg->dec64 = pos.y;
+		break;
+	case W_ARG_Z:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_get_position(sound);
+		arg->dec64 = pos.z;
+		break;
 
 	default:
 		return PE_BAD_SELECT;	
@@ -278,41 +302,70 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 }
 int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound* sound = (ma_sound*)hob->data;
-	word = RL_FIND_WORD(sound_words, word);
+	word = RL_FIND_WORD(arg_words, word);
 	ma_uint64 frames;
+	ma_vec3f pos;
 
 	switch (word) {
-	case W_SOUND_VOLUME:
-		if (!(*type == RXT_DECIMAL || *type == RXT_PERCENT)) return PE_BAD_SET_TYPE;
-		ma_sound_set_volume(sound, arg->dec64);
+	case W_ARG_VOLUME:
+		switch (*type) {
+		case RXT_DECIMAL:
+		case RXT_PERCENT:
+			ma_sound_set_volume(sound, arg->dec64);
+			break;
+		case RXT_INTEGER:
+			ma_sound_set_volume(sound, (float)arg->int64);
+			break;
+		default: 
+			return PE_BAD_SET_TYPE;
+		}
 		break;
-	case W_SOUND_PAN:
+	case W_ARG_POSITION:
+		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;
+		pos = ma_sound_get_position(sound);
+		ma_sound_set_position(sound, arg->dec32a, arg->dec32b, pos.z);
+		break;
+	case W_ARG_PAN:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_set_pan(sound, arg->dec64);
 		break;
-	case W_SOUND_PITCH:
+	case W_ARG_PITCH:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_set_pitch(sound, arg->dec64);
 		break;
-	case W_SOUND_SPATIALIZATION:
+	case W_ARG_SPATIALIZE:
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
 		ma_sound_set_spatialization_enabled(sound, arg->int32a);
 		break;
-	case W_SOUND_LOOP:
+	case W_ARG_IS_LOOPING:
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
 		ma_sound_set_looping(sound, arg->int32a);
 		break;
 
-	case W_SOUND_START:
-	case W_SOUND_STOP:
+	case W_ARG_START:
+	case W_ARG_STOP:
 		if (arg->int64 < 0) return PE_BAD_SET; // allow only positive time
 		if   (*type == RXT_INTEGER) frames = abs_sound_frames(arg, sound);
 		else if (*type == RXT_TIME) frames = abs_sound_time_to_frames(arg, sound);
 		else return PE_BAD_SET_TYPE;
-		if (word == W_SOUND_START)
+		if (word == W_ARG_START)
 			ma_sound_set_start_time_in_pcm_frames(sound, frames);
 		else
 			ma_sound_set_stop_time_in_pcm_frames(sound, frames);
+		break;
+
+	case W_ARG_X:
+	case W_ARG_Y:
+	case W_ARG_Z:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_get_position(sound);
+		switch(word) {
+		case W_ARG_X: pos.x = (float)arg->dec64; break; 
+		case W_ARG_Y: pos.y = (float)arg->dec64; break; 
+		case W_ARG_Z: pos.z = (float)arg->dec64; break; 
+		}
+		ma_sound_set_position(sound, pos.x, pos.y, pos.z);
+
 		break;
 
 	default:
@@ -337,8 +390,8 @@ int MANoise_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		arg->dec64 = noise->config.amplitude;
 		break;
 	case W_ARG_TYPE:
-		*type = RXT_INTEGER;
-		arg->int64 = noise->config.type;
+		*type = RXT_WORD;
+		arg->int64 = type_words[W_TYPE_WHITE + noise->config.type];
 		break;
 	case W_ARG_FORMAT:
 		*type = RXT_INTEGER;
@@ -385,9 +438,13 @@ int MAWaveform_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		arg->dec64 = waveform->config.frequency;
 		break;
 	case W_ARG_TYPE:
-		*type = RXT_INTEGER;
-		arg->int64 = waveform->config.type;
-		//printf("type: %i %f %p\n", noise->config.type, noise->config.amplitude, &noise->config);
+		*type = RXT_WORD;
+		arg->int64 = type_words[W_TYPE_SINE + waveform->config.type];
+		break;
+		break;
+	case W_ARG_FORMAT:
+		*type = RXT_WORD;
+		arg->int64 = type_words[W_TYPE_F32 + waveform->config.format];
 		break;
 	default:
 		return PE_BAD_SELECT;	
@@ -397,7 +454,6 @@ int MAWaveform_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 int MAWaveform_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_waveform* waveform = (ma_waveform*)hob->data;
 	word = RL_FIND_WORD(arg_words, word);
-	//printf("MANoise_set_path word: %u\n", word);
 	switch (word) {
 	case W_ARG_AMPLITUDE:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
@@ -422,8 +478,8 @@ COMMAND cmd_init_words(RXIFRM *frm, void *ctx) {
 	ma_result result;
 	ma_resource_manager_config resourceManagerConfig;
 
-	sound_words = RL_MAP_WORDS(RXA_SERIES(frm,1));
-	arg_words = RL_MAP_WORDS(RXA_SERIES(frm,2));
+	arg_words  = RL_MAP_WORDS(RXA_SERIES(frm,1));
+	type_words = RL_MAP_WORDS(RXA_SERIES(frm,2));
 
 
 	resourceManagerConfig = ma_resource_manager_config_init();

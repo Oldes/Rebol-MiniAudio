@@ -24,8 +24,8 @@ extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 
-extern u32* sound_words;
 extern u32* arg_words;
+extern u32* type_words;
 
 enum ext_commands {
 	CMD_MINIAUDIO_INIT_WORDS,
@@ -73,38 +73,53 @@ int cmd_pitchq(RXIFRM *frm, void *ctx);
 int cmd_looping(RXIFRM *frm, void *ctx);
 int cmd_loopingq(RXIFRM *frm, void *ctx);
 int cmd_endq(RXIFRM *frm, void *ctx);
-enum ma_sound_words {W_SOUND_0,
-	W_SOUND_VOLUME,
-	W_SOUND_PAN,
-	W_SOUND_PITCH,
-	W_SOUND_DURATION,
-	W_SOUND_CURSOR,
-	W_SOUND_FRAMES,
-	W_SOUND_SAMPLE_RATE,
-	W_SOUND_SPATIALIZATION,
-	W_SOUND_LOOP,
-	W_SOUND_ENDQ,
-	W_SOUND_PLAYINGQ,
-	W_SOUND_FILE,
-	W_SOUND_START,
-	W_SOUND_STOP
-};
+
 enum ma_arg_words {W_ARG_0,
 	W_ARG_VOLUME,
-	W_ARG_TYPE,
-	W_ARG_AMPLITUDE,
-	W_ARG_FREQUENCY,
-	W_ARG_FORMAT,
-	W_ARG_FRAMES,
+	W_ARG_PAN,
+	W_ARG_PITCH,
+	W_ARG_POSITION,
+	W_ARG_CURSOR,
 	W_ARG_TIME,
-	W_ARG_RESOURCES
+	W_ARG_DURATION,
+	W_ARG_FRAMES,
+	W_ARG_SAMPLE_RATE,
+	W_ARG_SPATIALIZE,
+	W_ARG_IS_LOOPING,
+	W_ARG_IS_PLAYING,
+	W_ARG_AT_END,
+	W_ARG_START,
+	W_ARG_STOP,
+	W_ARG_X,
+	W_ARG_Y,
+	W_ARG_Z,
+	W_ARG_SOURCE,
+	W_ARG_RESOURCES,
+	W_ARG_AMPLITUDE,
+	W_ARG_FORMAT,
+	W_ARG_TYPE,
+	W_ARG_FREQUENCY
+};
+enum ma_type_words {W_TYPE_0,
+	W_TYPE_WHITE,
+	W_TYPE_PINK,
+	W_TYPE_BROWNIAN,
+	W_TYPE_SINE,
+	W_TYPE_SQUARE,
+	W_TYPE_TRIANGLE,
+	W_TYPE_SAWTOOTH,
+	W_TYPE_F32,
+	W_TYPE_S16,
+	W_TYPE_S24,
+	W_TYPE_S32,
+	W_TYPE_U8
 };
 
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
 	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]\n"\
-	"init-words: command [sound [block!] noise [block!]]\n"\
+	"init-words: command [args [block!] type [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\"]\n"\
 	"load: command [\"Loads a file and returns sound's handle\" sound [file!]]\n"\
@@ -125,7 +140,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"looping: command [\"Set the looping\" sound [handle!] value [logic!]]\n"\
 	"looping?: command [\"Get the looping\" sound [handle!]]\n"\
 	"end?: command [\"Return true if sound ended\" sound [handle!]]\n"\
-	"init-words [volume pan pitch duration cursor frames sample-rate spatialization loop end? playing? file start stop][volume type amplitude frequency format frames time resources]\n"\
+	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source resources amplitude format type frequency][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
 	"protect/hide 'init-words\n"\
 	"\n"\
 	";; Waveform types\n"\
