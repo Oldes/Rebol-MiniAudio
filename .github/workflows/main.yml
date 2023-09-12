@@ -60,7 +60,7 @@ jobs:
       run:  mv ./build/miniaudio-linux-x64.so ./miniaudio.rebx
 
     - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.13.0
+      uses: oldes/install-rebol@v3.14.0
       with:
         product: Bulk
 
@@ -93,7 +93,7 @@ jobs:
       run:  mv ./build/miniaudio-macos-x64.dylib ./miniaudio-macos-x64.rebx
 
     - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.13.0
+      uses: oldes/install-rebol@v3.14.0
       with:
         product: Bulk
 
