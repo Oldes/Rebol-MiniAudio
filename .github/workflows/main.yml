@@ -32,7 +32,7 @@ jobs:
       run:  MOVE ./build/miniaudio-windows-x64.rebx ./miniaudio-windows-x64.rebx
 
     - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.13.0
+      uses: oldes/install-rebol@v3.14.0
       with:
         product: Bulk
 
