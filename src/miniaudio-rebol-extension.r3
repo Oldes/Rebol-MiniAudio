@@ -13,7 +13,13 @@ commands: [
 	;test:  ["..."]
 
 	get-devices:   ["Retrive playback/capture device names"]
-	init-playback: ["Initialize a playback device" index [integer!] /pause "Don't start it automatically"]
+	init-playback: [
+		"Initialize a playback device"
+		index [integer!]
+		/pause    "Don't start it automatically"
+		/channels "The number of channels to use for playback" 
+		 number [integer!] "When set to 0 the device's native channel count will be used"
+	]
 
 	
 

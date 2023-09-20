@@ -609,7 +609,7 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
 	deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[iChosenDevice].id;
 	deviceConfig.playback.format    = gResourceManager.config.decodedFormat;
-	deviceConfig.playback.channels  = 0;
+	deviceConfig.playback.channels  = RXA_INT64(frm, 4);
 	deviceConfig.sampleRate         = gResourceManager.config.decodedSampleRate;
 	deviceConfig.dataCallback       = data_callback;
 	deviceConfig.pUserData          = engine;

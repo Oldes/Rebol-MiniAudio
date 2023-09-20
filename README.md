@@ -83,6 +83,8 @@ Retrive playback/capture device names
 Initialize a playback device
 * `index` `[integer!]`
 * `/pause` Don't start it automatically
+* `/channels` The number of channels to use for playback
+* `number` `[integer!]` When set to 0 the device's native channel count will be used
 
 #### `load` `:sound`
 Loads a file and returns sound's handle
