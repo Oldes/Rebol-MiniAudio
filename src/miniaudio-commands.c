@@ -139,6 +139,18 @@ int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_TIME;
 		arg->int64 = ma_engine_get_time_in_milliseconds(engine) * 1000000;
 		break;
+	case W_ARG_CHANNELS:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_engine_get_channels(engine);
+		break;
+	case W_ARG_SAMPLE_RATE:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_engine_get_sample_rate(engine);
+		break;
+	case W_ARG_GAIN_DB:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_engine_get_gain_db(engine);
+		break;
 	default:
 		return PE_BAD_SELECT;	
 	}
@@ -169,6 +181,11 @@ int MAEngine_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_TIME) return PE_BAD_SET_TYPE;
 		if (arg->uint64 < 0) return PE_BAD_SET;
 		ma_engine_set_time_in_milliseconds(engine, arg->uint64 / 1000000);
+		break;
+	case W_ARG_GAIN_DB:
+		if      (*type == RXT_DECIMAL) ma_engine_set_gain_db(engine, (float)arg->dec64);
+		else if (*type == RXT_INTEGER) ma_engine_set_gain_db(engine, (float)arg->int64);
+		else return PE_BAD_SET_TYPE;
 		break;
 	default:
 		return PE_BAD_SET;	

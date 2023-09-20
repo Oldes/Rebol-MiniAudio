@@ -194,53 +194,60 @@ Return true if sound ended
 
 #### __MA-SOUND__ - MiniAudio sound object
 
-| Refinement      | Gets               | Sets                         | Description
-|-----------------|--------------------|------------------------------|------------
-|volume           |decimal!            |integer! decimal! percent!    |Sound volume
-|pan              |decimal!            |decimal!                      |Stereo panning (from -1.0 to 1.0)
-|pitch            |decimal!            |decimal!                      |Sound pitch
-|position         |pair!               |pair!                         |Sound position (x and y for now) relative to the listener
-|cursor           |integer!            |integer! time!                |Sound playback position in PCM frames
-|time             |time!               |time!                         |Sound playback position as time
-|duration         |time!               |none                          |Sound duration in time
-|frames           |integer!            |none                          |Sound length in PCM frames
-|sample-rate      |integer!            |none                          |Number of samples per second
-|spatialize       |logic!              |logic!                        |3D spatialization state
-|is-looping       |logic!              |logic!                        |Whether sound is looping
-|is-playing       |logic!              |logic!                        |Whether sound is playing
-|at-end           |logic!              |none                          |Whether sound is at end
-|start            |integer!            |integer! time!                |Absolute timer when the sound should be started (frames or time)
-|stop             |integer!            |integer! time!                |Absolute timer when the sound should be stopped (frames or time)
-|x                |decimal!            |integer! decimal!             |Sound X position
-|y                |decimal!            |integer! decimal!             |Sound Y position
-|z                |decimal!            |integer! decimal!             |Sound Z position
-|source           |file! handle!       |none                          |Sound source as a loaded file or data source node
+```rebol
+;Refinement       Gets                Sets                          Description
+/volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
+/pitch            decimal!            decimal!                      "Sound pitch"
+/position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
+/cursor           integer!            [integer! time!]              "Sound playback position in PCM frames"
+/time             time!               time!                         "Sound playback position as time"
+/duration         time!               none                          "Sound duration in time"
+/frames           integer!            none                          "Sound length in PCM frames"
+/sample-rate      integer!            none                          "Number of samples per second"
+/spatialize       logic!              logic!                        "3D spatialization state"
+/is-looping       logic!              logic!                        "Whether sound is looping"
+/is-playing       logic!              logic!                        "Whether sound is playing"
+/at-end           logic!              none                          "Whether sound is at end"
+/start            integer!            [integer! time!]              "Absolute timer when the sound should be started (frames or time)"
+/stop             integer!            [integer! time!]              "Absolute timer when the sound should be stopped (frames or time)"
+/x                decimal!            [integer! decimal!]           "Sound X position"
+/y                decimal!            [integer! decimal!]           "Sound Y position"
+/z                decimal!            [integer! decimal!]           "Sound Z position"
+/source           [file! handle!]     none                          "Sound source as a loaded file or data source node"
+```
 
 #### __MA-ENGINE__ - MiniAudio device engine
 
-| Refinement      | Gets               | Sets                         | Description
-|-----------------|--------------------|------------------------------|------------
-|volume           |decimal!            |integer! decimal! percent!    |Global volume
-|cursor           |integer!            |integer! time!                |Engine playback position in PCM frames
-|time             |time!               |time!                         |Engine playback position as time
-|resources        |block!              |none                          |Used engine resources (sounds, nodes..)
+```rebol
+;Refinement       Gets                Sets                          Description
+/volume           decimal!            [integer! decimal! percent!]  "Global volume"
+/cursor           integer!            [integer! time!]              "Engine playback position in PCM frames"
+/time             time!               time!                         "Engine playback position as time"
+/resources        block!              none                          "Used engine resources (sounds, nodes..)"
+/channels         integer!            none                          "Number of output channels"
+/sample-rate      integer!            none                          "Ouput device sample rate per second"
+/gain-db          decimal!            [integer! decimal!]           "The amplification factor in decibels"
+```
 
 #### __MA-NOISE__ - MiniAudio noise generator
 
-| Refinement      | Gets               | Sets                         | Description
-|-----------------|--------------------|------------------------------|------------
-|amplitude        |decimal!            |decimal!                      |Maximum value of the noise signal
-|format           |word!               |none                          |f32, s16, s24, s32, u8
-|type             |word!               |none                          |white, pink or brownian
+```rebol
+;Refinement       Gets                Sets                          Description
+/amplitude        decimal!            decimal!                      "Maximum value of the noise signal"
+/format           word!               none                          "f32, s16, s24, s32, u8"
+/type             word!               none                          "white, pink or brownian"
+```
 
 #### __MA-WAWEFORM__ - MiniAudio sine, square, triangle and sawtooth waveforms generator
 
-| Refinement      | Gets               | Sets                         | Description
-|-----------------|--------------------|------------------------------|------------
-|amplitude        |decimal!            |decimal!                      |Signal amplitude
-|frequency        |decimal!            |decimal!                      |Signal frequency in hertzs
-|format           |word!               |none                          |f32, s16, s24, s32, u8
-|type             |word!               |none                          |sine,	square, triangle or sawtooth
+```rebol
+;Refinement       Gets                Sets                          Description
+/amplitude        decimal!            decimal!                      "Signal amplitude"
+/frequency        decimal!            decimal!                      "Signal frequency in hertzs"
+/format           word!               none                          "f32, s16, s24, s32, u8"
+/type             word!               none                          "sine, square, triangle or sawtooth"
+```
 
 
 ## Other extension values:

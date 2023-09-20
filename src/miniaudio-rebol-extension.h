@@ -95,6 +95,8 @@ enum ma_arg_words {W_ARG_0,
 	W_ARG_Z,
 	W_ARG_SOURCE,
 	W_ARG_RESOURCES,
+	W_ARG_CHANNELS,
+	W_ARG_GAIN_DB,
 	W_ARG_AMPLITUDE,
 	W_ARG_FORMAT,
 	W_ARG_TYPE,
@@ -140,7 +142,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"looping: command [\"Set the looping\" sound [handle!] value [logic!]]\n"\
 	"looping?: command [\"Get the looping\" sound [handle!]]\n"\
 	"end?: command [\"Return true if sound ended\" sound [handle!]]\n"\
-	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source resources amplitude format type frequency][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
+	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source resources channels gain-db amplitude format type frequency][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
 	"protect/hide 'init-words\n"\
 	"\n"\
 	";; Waveform types\n"\

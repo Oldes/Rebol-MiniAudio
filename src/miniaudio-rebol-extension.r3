@@ -139,6 +139,9 @@ handles: make map! [
 		cursor         integer!  [integer! time!]    "Engine playback position in PCM frames"
 		time           time!      time!              "Engine playback position as time"
 		resources      block!     none               "Used engine resources (sounds, nodes..)"
+		channels       integer!   none               "Number of output channels"
+		sample-rate    integer!   none               "Ouput device sample rate per second"
+		gain-db        decimal!  [integer! decimal!] "The amplification factor in decibels"
 	]
 	ma-noise: [
 		"MiniAudio noise generator"
@@ -151,7 +154,7 @@ handles: make map! [
 		amplitude      decimal!   decimal!           "Signal amplitude"
 		frequency      decimal!   decimal!           "Signal frequency in hertzs"
 		format         word!      none               "f32, s16, s24, s32, u8"
-		type           word!      none               "sine,	square, triangle or sawtooth"
+		type           word!      none               "sine, square, triangle or sawtooth"
 	]
 ]
 
@@ -161,19 +164,20 @@ handles-doc: copy {}
 foreach [name spec] handles [
 	append handles-doc ajoin [
 		LF LF "#### __" uppercase form name "__ - " spec/1 LF
-		LF "| Refinement      | Gets               | Sets                         | Description"
-		LF "|-----------------|--------------------|------------------------------|------------"
+		LF "```rebol"
+		LF ";Refinement       Gets                Sets                          Description"
 	]
 	foreach [name gets sets desc] next spec [
 		append handles-doc rejoin [
 			LF
-			#"|" pad name 17
-			#"|" pad gets 20
-			#"|" pad sets 30
-			#"|" desc
+			#"/" pad name 17
+			pad mold gets 20
+			pad mold sets 30
+			#"^"" desc #"^""
 		]
 		append arg-words name
 	]
+	append handles-doc "^/```"
 ]
 ;print handles-doc
 arg-words: unique arg-words
