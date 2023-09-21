@@ -151,6 +151,11 @@ Create a noise node data source
 * `/format` The sample format (default is 2 = signed 16bit float)
 * `frm` `[integer!]` Value betweem 1 - 5
 
+#### `delay-node` `:delay` `:decay`
+
+* `delay` `[decimal! integer! time!]` Seconds, PCM frames or time
+* `decay` `[decimal! percent!]` Feedback decay (0.0 - 1.0) where 0 means no feedback
+
 #### `volume` `:sound` `:volume`
 Set the volume
 * `sound` `[handle!]`
@@ -217,6 +222,8 @@ Return true if sound ended
 /y                decimal!            [integer! decimal!]           "Sound Y position"
 /z                decimal!            [integer! decimal!]           "Sound Z position"
 /source           [file! handle!]     none                          "Sound source as a loaded file or data source node"
+/outputs          integer!            none                          "Number of output buses"
+/output           handle!             handle!                       "Output bus node"
 ```
 
 #### __MA-ENGINE__ - MiniAudio device engine
@@ -249,6 +256,14 @@ Return true if sound ended
 /frequency        decimal!            decimal!                      "Signal frequency in hertzs"
 /format           word!               none                          "f32, s16, s24, s32, u8"
 /type             word!               none                          "sine, square, triangle or sawtooth"
+```
+
+#### __MA-DELAY__ - MiniAudio delay node
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/delay            integer!            none                          "PCM frames"
+/decay            decimal!            [decimal! percent!]           "Value between 0.0 and 1.0"
 ```
 
 

@@ -6,6 +6,7 @@
 #include "miniaudio-rebol-extension.h"
 #include <stdio.h>
 #include <stdlib.h> // malloc
+#include <math.h>   // fmin, fmax
 
 #define COMMAND int
 
@@ -310,7 +311,10 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		pos = ma_sound_get_position(sound);
 		arg->dec64 = pos.z;
 		break;
-
+	case W_ARG_OUTPUTS:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_output_bus_count((ma_node*)sound);
+		break;
 	default:
 		return PE_BAD_SELECT;	
 	}
@@ -321,6 +325,7 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound* sound = (ma_sound*)hob->data;
 	word = RL_FIND_WORD(arg_words, word);
 	ma_uint64 frames;
+	ma_result r = MA_SUCCESS;
 	ma_vec3f pos;
 
 	switch (word) {
@@ -336,6 +341,11 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		default: 
 			return PE_BAD_SET_TYPE;
 		}
+		break;
+	case W_ARG_CURSOR:
+		if (*type != RXT_INTEGER) return PE_BAD_SET_TYPE;
+		if (arg->int64 < 0) arg->int64 = 0;
+		ma_sound_seek_to_pcm_frame(sound, arg->uint64);
 		break;
 	case W_ARG_POSITION:
 		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;
@@ -385,9 +395,19 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 
 		break;
 
+	case W_ARG_OUTPUT:
+		if (
+			*type != RXT_HANDLE ||
+			! arg->handle.hob   || 
+			!(arg->handle.type == Handle_MADelay || arg->handle.type == Handle_MAEngine)
+		) return PE_BAD_SET_TYPE;
+		r = ma_node_attach_output_bus(sound, 0, (ma_node*)arg->handle.hob->data, 0);
+		break;
+
 	default:
 		return PE_BAD_SET;	
 	}
+	if (r != MA_SUCCESS) return PE_BAD_SET;
 	return PE_OK;
 }
 
@@ -487,7 +507,43 @@ int MAWaveform_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 }
 
 
-
+int MADelay_free(void* hndl) {
+	if (hndl != NULL) {
+		printf("release delay: %p\n", hndl);
+		ma_delay_node_uninit((ma_delay_node*)hndl, NULL);
+	}
+	return 0;
+}
+int MADelay_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_delay_node* node = (ma_delay_node*)hob->data;
+	word = RL_FIND_WORD(arg_words, word);
+	switch (word) {
+	case W_ARG_DELAY:
+		*type = RXT_INTEGER;
+		arg->uint64 = node->delay.config.delayInFrames;
+		break;
+	case W_ARG_DECAY:
+		*type = RXT_DECIMAL;
+		arg->dec64 = node->delay.config.decay;
+		break;
+	default:
+		return PE_BAD_SELECT;	
+	}
+	return PE_USE;
+}
+int MADelay_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_delay_node* node = (ma_delay_node*)hob->data;
+	word = RL_FIND_WORD(arg_words, word);
+	switch (word) {
+	case W_ARG_DECAY:
+		if (*type != RXT_DECIMAL && *type != RXT_PERCENT) return PE_BAD_SET_TYPE;
+		ma_delay_set_decay(&node->delay, (float)arg->dec64);
+		break;
+	default:
+		return PE_BAD_SET;	
+	}
+	return PE_OK;
+}
 
 
 
@@ -681,7 +737,7 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 	}
 
 	if (RXA_REF(frm, 4)) ma_sound_set_volume(sound, ARG_Float(5));
-	ma_sound_start(sound);
+	if (MA_SUCCESS != ma_sound_start(sound)) RETURN_ERROR("Failed to start sound");
 	ma_sound_set_looping(sound, RXA_REF(frm, 3));
 
 	if (RXA_REF(frm, 6)) { // fade
@@ -931,11 +987,12 @@ COMMAND cmd_noise_node(RXIFRM *frm, void *ctx) {
 
 COMMAND cmd_waveform_node(RXIFRM *frm, void *ctx) {
 	ma_waveform *waveform;
-	REBHOB* hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAWaveform);
-	if (hob == NULL) return RXR_NONE;
-	waveform = (ma_waveform*)hob->data;
 
 	ASSERT_ENGINE();
+
+	REBHOB* hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAWaveform);
+	if (hob == NULL) return RXR_NONE;
+	waveform = (ma_waveform*)hob->data;	
 
 	REBCNT format = ARG_Int32(5);
 	if (!format || format >= ma_format_count) format = ma_format_s16;
@@ -956,6 +1013,54 @@ COMMAND cmd_waveform_node(RXIFRM *frm, void *ctx) {
 	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
 	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
 	RXA_TYPE(frm, 1) = RXT_HANDLE;
+
+	return RXR_VALUE;
+}
+
+COMMAND cmd_delay_node(RXIFRM *frm, void *ctx) {
+	ma_delay_node *delay;
+	ma_uint32 channels;
+	ma_uint32 sampleRate;
+	ma_uint32 delayInFrames;
+	float decay;
+
+	ASSERT_ENGINE();
+
+	REBHOB* hob = RL_MAKE_HANDLE_CONTEXT(Handle_MADelay);
+	if (hob == NULL) return RXR_NONE;
+	delay = (ma_delay_node*)hob->data;
+
+	channels   = ma_engine_get_channels(&pEngine->engine);
+	sampleRate = ma_engine_get_sample_rate(&pEngine->engine);
+
+	if (RXA_INT64(frm, 1) < 0) RXA_INT64(frm, 1) = 1;
+	else if (RXA_TYPE(frm, 1) == RXT_INTEGER) {
+		delayInFrames = (ma_uint32)RXA_UINT64(frm, 1);
+	} else if (RXA_TYPE(frm, 1) == RXT_DECIMAL) {
+		delayInFrames = (ma_uint32)(RXA_DEC64(frm, 1) * sampleRate);
+	} else {
+		delayInFrames = (ma_uint32)((RXA_TIME(frm, 1) * sampleRate) / 1000000000);
+	}
+
+	decay = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 2)));
+
+	ma_delay_node_config config = ma_delay_node_config_init(channels, sampleRate, delayInFrames, decay);
+
+	if (MA_SUCCESS != ma_delay_node_init(ma_engine_get_node_graph(&pEngine->engine), &config, NULL, delay))
+		RETURN_ERROR("Failed to initialize the delay node.");
+
+	/* Connect the output of the delay node to the input of the endpoint. */
+	ma_node_attach_output_bus(delay, 0, ma_engine_get_endpoint(&pEngine->engine), 0);
+
+	hob->series = NULL;
+	RXA_HANDLE(frm, 1)       = hob;
+	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
+	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
+	RXA_TYPE(frm, 1) = RXT_HANDLE;
+
+	/* Keep the reference to the handle so it is not released by GC */
+	REBSER *blk = pEngineHob->series;
+	RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
 
 	return RXR_VALUE;
 }

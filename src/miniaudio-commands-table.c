@@ -16,6 +16,7 @@ MyCommandPointer Command[] = {
 	cmd_seek,
 	cmd_noise_node,
 	cmd_waveform_node,
+	cmd_delay_node,
 	cmd_volume,
 	cmd_volumeq,
 	cmd_pan,

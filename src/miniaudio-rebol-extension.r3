@@ -84,6 +84,10 @@ commands: [
 		/format "The sample format (default is 2 = signed 16bit float)"
 		 frm [integer!] "Value betweem 1 - 5"
 	]
+	delay-node: [
+		delay [decimal! integer! time!] "Seconds, PCM frames or time"
+		decay [decimal! percent!] "Feedback decay (0.0 - 1.0) where 0 means no feedback"
+	]
 	
 	;; Keep these (s|g)etters?
 	volume:   ["Set the volume"  sound [handle!] volume [percent! decimal!]]
@@ -138,6 +142,8 @@ handles: make map! [
 		y              decimal!  [integer! decimal!] "Sound Y position"
 		z              decimal!  [integer! decimal!] "Sound Z position"
 		source        [file! handle!] none           "Sound source as a loaded file or data source node"
+		outputs        integer!   none               "Number of output buses"
+		output         handle!    handle!            "Output bus node"
 	]
 	ma-engine: [
 		"MiniAudio device engine"
@@ -161,6 +167,11 @@ handles: make map! [
 		frequency      decimal!   decimal!           "Signal frequency in hertzs"
 		format         word!      none               "f32, s16, s24, s32, u8"
 		type           word!      none               "sine, square, triangle or sawtooth"
+	]
+	ma-delay: [
+		"MiniAudio delay node"
+		delay          integer!  none                "PCM frames"
+		decay          decimal!  [decimal! percent!] "Value between 0.0 and 1.0"
 	]
 ]
 
@@ -293,6 +304,7 @@ extern REBCNT Handle_MAEngine;
 extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
+extern REBCNT Handle_MADelay;
 
 extern u32* arg_words;
 extern u32* type_words;

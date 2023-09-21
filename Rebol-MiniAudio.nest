@@ -61,6 +61,8 @@ target-armv7: [
 
 #if Posix? [
 	libraries: [%dl %m %pthread]
+	cflag: -msse2
+	cflag: -mavx2
 ]
 
 #if macOS? [

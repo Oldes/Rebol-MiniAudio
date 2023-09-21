@@ -23,6 +23,7 @@ extern REBCNT Handle_MAEngine;
 extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
+extern REBCNT Handle_MADelay;
 
 extern u32* arg_words;
 extern u32* type_words;
@@ -40,6 +41,7 @@ enum ext_commands {
 	CMD_MINIAUDIO_SEEK,
 	CMD_MINIAUDIO_NOISE_NODE,
 	CMD_MINIAUDIO_WAVEFORM_NODE,
+	CMD_MINIAUDIO_DELAY_NODE,
 	CMD_MINIAUDIO_VOLUME,
 	CMD_MINIAUDIO_VOLUMEQ,
 	CMD_MINIAUDIO_PAN,
@@ -64,6 +66,7 @@ int cmd_fade(RXIFRM *frm, void *ctx);
 int cmd_seek(RXIFRM *frm, void *ctx);
 int cmd_noise_node(RXIFRM *frm, void *ctx);
 int cmd_waveform_node(RXIFRM *frm, void *ctx);
+int cmd_delay_node(RXIFRM *frm, void *ctx);
 int cmd_volume(RXIFRM *frm, void *ctx);
 int cmd_volumeq(RXIFRM *frm, void *ctx);
 int cmd_pan(RXIFRM *frm, void *ctx);
@@ -94,13 +97,17 @@ enum ma_arg_words {W_ARG_0,
 	W_ARG_Y,
 	W_ARG_Z,
 	W_ARG_SOURCE,
+	W_ARG_OUTPUTS,
+	W_ARG_OUTPUT,
 	W_ARG_RESOURCES,
 	W_ARG_CHANNELS,
 	W_ARG_GAIN_DB,
 	W_ARG_AMPLITUDE,
 	W_ARG_FORMAT,
 	W_ARG_TYPE,
-	W_ARG_FREQUENCY
+	W_ARG_FREQUENCY,
+	W_ARG_DELAY,
+	W_ARG_DECAY
 };
 enum ma_type_words {W_TYPE_0,
 	W_TYPE_WHITE,
@@ -133,6 +140,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"seek: command [\"Seek to specified position\" sound [handle!] frames [integer! time!] /relative \"Relative to the current sound position\"]\n"\
 	"noise-node: command [\"Create a noise node data source\" type [integer!] amplitude [decimal!] /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
 	"waveform-node: command [type [integer!] amplitude [decimal!] frequency [decimal!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
+	"delay-node: command [delay [decimal! integer! time!] \"Seconds, PCM frames or time\" decay [decimal! percent!] {Feedback decay (0.0 - 1.0) where 0 means no feedback}]\n"\
 	"volume: command [\"Set the volume\" sound [handle!] volume [percent! decimal!]]\n"\
 	"volume?: command [\"Get the volume\" sound [handle!]]\n"\
 	"pan: command [\"Set the pan\" sound [handle!] pan [decimal!]]\n"\
@@ -142,7 +150,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"looping: command [\"Set the looping\" sound [handle!] value [logic!]]\n"\
 	"looping?: command [\"Get the looping\" sound [handle!]]\n"\
 	"end?: command [\"Return true if sound ended\" sound [handle!]]\n"\
-	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source resources channels gain-db amplitude format type frequency][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
+	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source outputs output resources channels gain-db amplitude format type frequency delay decay][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
 	"protect/hide 'init-words\n"\
 	"\n"\
 	";; Waveform types\n"\

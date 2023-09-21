@@ -12,6 +12,7 @@ REBCNT Handle_MAEngine;
 REBCNT Handle_MASound;
 REBCNT Handle_MANoise;
 REBCNT Handle_MAWaveform;
+REBCNT Handle_MADelay;
 
 u32* arg_words;
 u32* type_words;
@@ -36,6 +37,10 @@ int MANoise_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 int MAWaveform_free(void* hndl);
 int MAWaveform_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 int MAWaveform_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
+
+int MADelay_free(void* hndl);
+int MADelay_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
+int MADelay_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 
 RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 	RL = lib;
@@ -88,6 +93,12 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 	spec.set_path  = MAWaveform_set_path;
 	Handle_MAWaveform = RL_REGISTER_HANDLE_SPEC((REBYTE*)"ma-waveform", &spec);
 
+	spec.size      = sizeof(ma_delay_node);
+	spec.flags     = 0;
+	spec.free      = MADelay_free;
+	spec.get_path  = MADelay_get_path;
+	spec.set_path  = MADelay_set_path;
+	Handle_MADelay = RL_REGISTER_HANDLE_SPEC((REBYTE*)"ma-delay", &spec);
 	return init_block;
 }
 

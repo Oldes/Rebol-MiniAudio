@@ -50,9 +50,9 @@ print  "Modifying global playback time to 0:0:2"
 device/time: 0:0:2
 print ["Device global time in PCM frames:" device/frames "as time:" device/time]
 
-;; stop the music with a fade 5 seconds...
-print "Now stop the loop in 5 seconds fade-out..."
-audio/stop/fade :drums 0:0:5
+;; fade the music with a fade 5 seconds...
+print "Now fade out the loop in 5 seconds..."
+audio/fade :drums 0:0:5 100% 5%
 
 ;; wait for the sound to fade out...
 wait 5
@@ -66,8 +66,23 @@ sound/pan: -1.0
 audio/play :device/resources/1
 wait 1
 
+;- Using delay node...
+delay: audio/delay-node 0.25 50% ;; 0.25s delay with 50% decay
+print ["Prepared delay:" delay/delay "frames and" delay/decay "decay."]
+;; set the music output bus to the delay node...
+drums/output: :delay
+;; fade in the music
+audio/fade :drums 0:0:2.5 5% 100%
+wait 5
+;; stop the music with a fade 5 seconds...
+print "Now stop the loop in 5 seconds fade-out..."
+;; modify the decay...
+delay/decay: 85%
+print ["Decay value changed to:" delay/decay]
+audio/stop/fade :drums 0:0:5
+wait 4
 
-;; Using a data-source node...
+;- Using a data-source node...
 a: 0
 b: PI
 with audio [
