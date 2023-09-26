@@ -620,8 +620,7 @@ COMMAND cmd_get_devices(RXIFRM *frm, void *ctx) {
 		RETURN_ERROR("Failed to retrieve device information.");
 	}
 	REBLEN len;
-	REBSER *str = RL_MAKE_STRING(1000, FALSE); // 1024 bytes, latin1 (must be large enough!)
-	RXA_SERIES(frm, 1) = str;
+	REBSER *str = RL_MAKE_STRING(1000, FALSE); // temporary 1024 bytes.. can be extended automatically
 	RXA_TYPE(frm, 1) = RXT_STRING;
 	RXA_INDEX(frm, 1) = 0;
 
@@ -647,6 +646,8 @@ COMMAND cmd_get_devices(RXIFRM *frm, void *ctx) {
 
 	APPEND_STRING(str, "]\n");
 
+	// Convert UTF-8 output to Rebol string...
+	RXA_SERIES(frm, 1) = RL_DECODE_UTF_STRING(SERIES_DATA(str), SERIES_TAIL(str), 8, 0, 0);
 
 	return RXR_VALUE;
 }
