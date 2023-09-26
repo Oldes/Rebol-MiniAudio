@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 10-Sep-2023/20:37:33
+// Date: 26-Sep-2023/11:01:51
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
@@ -650,8 +650,8 @@ enum encoding_opts {
 ************************************************************************
 **
 **  Title: Extension Types (Isolators)
-**  Build: 3.13.1
-**  Date:  10-Sep-2023
+**  Build: 3.14.1
+**  Date:  26-Sep-2023
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3112,8 +3112,8 @@ enum {
 ************************************************************************
 **
 **  Title: Event Types
-**  Build: 3.13.1
-**  Date:  10-Sep-2023
+**  Build: 3.14.1
+**  Date:  26-Sep-2023
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3221,8 +3221,8 @@ enum event_keys {
 ************************************************************************
 **
 **  Title: REBOL Host and Extension API
-**  Build: 3.13.1
-**  Date:  10-Sep-2023
+**  Build: 3.14.1
+**  Date:  26-Sep-2023
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)
@@ -3233,7 +3233,7 @@ enum event_keys {
 // These constants are created by the release system and can be used to check
 // for compatiblity with the reb-lib DLL (using RL_Version.)
 #define RL_VER 3
-#define RL_REV 13
+#define RL_REV 14
 #define RL_UPD 1
 
 // Compatiblity with the lib requires that structs are aligned using the same
@@ -3292,6 +3292,8 @@ typedef struct rebol_ext_api {
 	void (*free_handle_context)(REBHOB *hob);
 	REBCNT (*decode_utf8_char)(const REBYTE *str, REBCNT *len);
 	REBCNT (*register_handle_spec)(REBYTE *name, REBHSP *spec);
+	REBSER* (*to_local_path)(RXIARG *file, REBFLG full, REBFLG utf8);
+	REBSER* (*to_rebol_path)(void *src, REBCNT len, REBINT uni);
 } RL_LIB;
 
 // Extension entry point functions:
@@ -4093,6 +4095,36 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **
 */
 
+#define RL_TO_LOCAL_PATH(a,b,c)     RL->to_local_path(a,b,c)
+/*
+**	REBSER* RL_To_Local_Path(RXIARG *file, REBFLG full, REBFLG utf8)
+**
+**	Convert REBOL filename to a local filename.
+**
+**	Returns:
+**		A new series with the converted path or 0 on error.
+**	Arguments:
+**		file - Rebol file as an extension argument (series + index)
+**		full - prepend current directory
+**		utf8 - convert to UTF-8 if needed
+**
+*/
+
+#define RL_TO_REBOL_PATH(a,b,c)     RL->to_rebol_path(a,b,c)
+/*
+**	REBSER* RL_To_Rebol_Path(void *src, REBCNT len, REBINT uni)
+**
+**	Convert local filename to a REBOL filename.
+**
+**	Returns:
+**		A new series with the converted path or 0 on error.
+**	Arguments:
+**		ser - series as a REBYTE or REBUNI.
+**		len - number of source bytes consumed.
+**		uni - if series is REBYTE (0) or REBUNI (1)
+**
+*/
+
 
 
 #define RL_MAKE_BINARY(s) RL_MAKE_STRING(s, FALSE)
@@ -4144,6 +4176,8 @@ RL_API REBHOB* RL_Make_Handle_Context(REBCNT sym);
 RL_API void RL_Free_Handle_Context(REBHOB *hob);
 RL_API REBCNT RL_Decode_UTF8_Char(const REBYTE *str, REBCNT *len);
 RL_API REBCNT RL_Register_Handle_Spec(REBYTE *name, REBHSP *spec);
+RL_API REBSER* RL_To_Local_Path(RXIARG *file, REBFLG full, REBFLG utf8);
+RL_API REBSER* RL_To_Rebol_Path(void *src, REBCNT len, REBINT uni);
 
 #endif
 

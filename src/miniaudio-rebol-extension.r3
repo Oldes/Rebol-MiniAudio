@@ -290,7 +290,7 @@ header: {
 #define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 
 #define MIN_REBOL_VER 3
-#define MIN_REBOL_REV 13
+#define MIN_REBOL_REV 14
 #define MIN_REBOL_UPD 1
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)

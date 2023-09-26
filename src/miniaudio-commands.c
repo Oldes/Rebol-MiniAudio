@@ -715,11 +715,14 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 	ma_uint32 flags = 0;
 	REBHOB* hob = NULL;
 	REBI64 frames;
+	REBSER* ser;
 
 	ASSERT_ENGINE();
 
 	if (RXA_TYPE(frm, 1) == RXT_FILE) {
-		const char* file = (const char*)((REBSER*)RXA_ARG(frm, 1).series)->data;
+		ser = RL_TO_LOCAL_PATH(&RXA_ARG(frm, 1), 1, 1);
+		if (!ser) RETURN_ERROR("Failed to convert the file name.");
+		const char* file = (const char*)SERIES_DATA(ser);
 
 		hob = RL_MAKE_HANDLE_CONTEXT(Handle_MASound);
 		if (hob == NULL) return RXR_NONE;
@@ -729,8 +732,11 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 		if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, flags, NULL, NULL, sound))
 			RETURN_ERROR("Failed to initialize the sound from file.");
 
+		// store the full path of the source file in the handle
 		hob->series = RL_MAKE_BLOCK(1);
-		RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_FILE);
+		RXA_SERIES(frm, 1) = ser;
+		RXA_INDEX(frm, 1) = 0;
+		RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_STRING);
 
 	} else if (ARG_Is_MASound(1)) {
 		sound = ARG_MASound(1);
@@ -944,6 +950,7 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	ma_result result;
 	ma_sound *sound;
 	REBHOB* hob;
+	REBSER* ser;
 
 	ASSERT_ENGINE();
 
@@ -951,13 +958,19 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	if (hob == NULL) return RXR_NONE;
 	sound = (ma_sound*)hob->data;
 
-	const char* file = (const char*)((REBSER*)RXA_ARG(frm, 1).series)->data;
+	ser = RL_TO_LOCAL_PATH(&RXA_ARG(frm, 1), 1, 1);
+
+	if (!ser) RETURN_ERROR("Failed to convert the file name.");
+	const char* file = (const char*)SERIES_DATA(ser);
 
 	if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, 0, NULL, NULL, sound))
 		RETURN_ERROR("Failed to initialize the sound from a file.");
 
+	// store the full path of the source file in the handle
 	hob->series = RL_MAKE_BLOCK(1);
-	RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_FILE);
+	RXA_SERIES(frm, 1) = ser;
+	RXA_INDEX(frm, 1) = 0;
+	RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_STRING);
 
 	RXA_HANDLE(frm, 1)       = hob;
 	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
