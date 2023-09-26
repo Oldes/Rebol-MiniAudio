@@ -323,10 +323,12 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 }
 int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound* sound = (ma_sound*)hob->data;
+	ma_engine* engine;
 	word = RL_FIND_WORD(arg_words, word);
 	ma_uint64 frames;
 	ma_result r = MA_SUCCESS;
 	ma_vec3f pos;
+	ma_node *node;
 
 	switch (word) {
 	case W_ARG_VOLUME:
@@ -396,12 +398,23 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		break;
 
 	case W_ARG_OUTPUT:
+		if (*type == RXT_NONE) {
+			ma_node_detach_output_bus(sound, 0);
+			break;
+		}
 		if (
 			*type != RXT_HANDLE ||
 			! arg->handle.hob   || 
 			!(arg->handle.type == Handle_MADelay || arg->handle.type == Handle_MAEngine)
 		) return PE_BAD_SET_TYPE;
-		r = ma_node_attach_output_bus(sound, 0, (ma_node*)arg->handle.hob->data, 0);
+		
+		if (arg->handle.type == Handle_MADelay) {
+			node = (ma_node*)arg->handle.hob->data;
+		} else {
+			engine = (ma_engine*)arg->handle.hob->data;
+			node = ma_node_graph_get_endpoint(&engine->nodeGraph);
+		}
+		r = ma_node_attach_output_bus(sound, 0, node, 0);
 		break;
 
 	default:

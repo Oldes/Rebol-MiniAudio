@@ -143,7 +143,7 @@ handles: make map! [
 		z              decimal!  [integer! decimal!] "Sound Z position"
 		source        [file! handle!] none           "Sound source as a loaded file or data source node"
 		outputs        integer!   none               "Number of output buses"
-		output         handle!    handle!            "Output bus node"
+		output         handle!   [handle! none!]     "Output bus node"
 	]
 	ma-engine: [
 		"MiniAudio device engine"
