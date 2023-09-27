@@ -2,7 +2,7 @@
 
 # Rebol/MiniAudio
 
-[MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.12.2 and higher)
+[MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.14.1 and higher)
 
 ## Usage
 ```rebol
