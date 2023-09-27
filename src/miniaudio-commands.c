@@ -1211,7 +1211,7 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 }
 
 
-COMMAND cmd_noise_node(RXIFRM *frm, void *ctx) {
+COMMAND cmd_make_noise_node(RXIFRM *frm, void *ctx) {
 	ma_noise *noise;
 	REBHOB* hob = RL_MAKE_HANDLE_CONTEXT(Handle_MANoise);
 	if (hob == NULL) return RXR_NONE;
@@ -1239,7 +1239,7 @@ COMMAND cmd_noise_node(RXIFRM *frm, void *ctx) {
 	return RXR_VALUE;
 }
 
-COMMAND cmd_waveform_node(RXIFRM *frm, void *ctx) {
+COMMAND cmd_make_waveform_node(RXIFRM *frm, void *ctx) {
 	ma_waveform *waveform;
 
 	ASSERT_ENGINE();
@@ -1271,7 +1271,7 @@ COMMAND cmd_waveform_node(RXIFRM *frm, void *ctx) {
 	return RXR_VALUE;
 }
 
-COMMAND cmd_delay_node(RXIFRM *frm, void *ctx) {
+COMMAND cmd_make_delay_node(RXIFRM *frm, void *ctx) {
 	ma_delay_node *delay;
 	ma_uint32 channels;
 	ma_uint32 sampleRate;
@@ -1319,7 +1319,7 @@ COMMAND cmd_delay_node(RXIFRM *frm, void *ctx) {
 	return RXR_VALUE;
 }
 
-COMMAND cmd_group_node(RXIFRM *frm, void *ctx) {
+COMMAND cmd_make_group_node(RXIFRM *frm, void *ctx) {
 	ma_sound_group *group;
 
 	ASSERT_ENGINE();

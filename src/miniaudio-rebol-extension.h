@@ -40,10 +40,10 @@ enum ext_commands {
 	CMD_MINIAUDIO_STOP,
 	CMD_MINIAUDIO_FADE,
 	CMD_MINIAUDIO_SEEK,
-	CMD_MINIAUDIO_NOISE_NODE,
-	CMD_MINIAUDIO_WAVEFORM_NODE,
-	CMD_MINIAUDIO_DELAY_NODE,
-	CMD_MINIAUDIO_GROUP_NODE,
+	CMD_MINIAUDIO_MAKE_NOISE_NODE,
+	CMD_MINIAUDIO_MAKE_WAVEFORM_NODE,
+	CMD_MINIAUDIO_MAKE_DELAY_NODE,
+	CMD_MINIAUDIO_MAKE_GROUP_NODE,
 	CMD_MINIAUDIO_VOLUME,
 	CMD_MINIAUDIO_VOLUMEQ,
 	CMD_MINIAUDIO_PAN,
@@ -66,10 +66,10 @@ int cmd_start(RXIFRM *frm, void *ctx);
 int cmd_stop(RXIFRM *frm, void *ctx);
 int cmd_fade(RXIFRM *frm, void *ctx);
 int cmd_seek(RXIFRM *frm, void *ctx);
-int cmd_noise_node(RXIFRM *frm, void *ctx);
-int cmd_waveform_node(RXIFRM *frm, void *ctx);
-int cmd_delay_node(RXIFRM *frm, void *ctx);
-int cmd_group_node(RXIFRM *frm, void *ctx);
+int cmd_make_noise_node(RXIFRM *frm, void *ctx);
+int cmd_make_waveform_node(RXIFRM *frm, void *ctx);
+int cmd_make_delay_node(RXIFRM *frm, void *ctx);
+int cmd_make_group_node(RXIFRM *frm, void *ctx);
 int cmd_volume(RXIFRM *frm, void *ctx);
 int cmd_volumeq(RXIFRM *frm, void *ctx);
 int cmd_pan(RXIFRM *frm, void *ctx);
@@ -141,10 +141,10 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"stop: command [\"Stop sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /fade out [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
 	"fade: command [\"Fade sound volume\" sound [handle!] frames [integer! time!] start [percent! decimal!] end [percent! decimal!]]\n"\
 	"seek: command [\"Seek to specified position\" sound [handle!] frames [integer! time!] /relative \"Relative to the current sound position\"]\n"\
-	"noise-node: command [\"Create a noise node data source\" type [integer!] amplitude [decimal!] /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
-	"waveform-node: command [type [integer!] amplitude [decimal!] frequency [decimal!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
-	"delay-node: command [delay [decimal! integer! time!] \"Seconds, PCM frames or time\" decay [decimal! percent!] {Feedback decay (0.0 - 1.0) where 0 means no feedback}]\n"\
-	"group-node: command [\"Make a sound group\"]\n"\
+	"make-noise-node: command [\"Creates a noise node for generating random noise\" type [integer!] \"The type of noise to generate (0 - 2)\" amplitude [decimal!] \"The peak amplitude of the noise\" /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
+	"make-waveform-node: command [\"Creates a sound waveform node\" type [integer!] \"The type of waveform to generate (0 - 3)\" amplitude [decimal!] \"The peak amplitude of the waveform\" frequency [decimal!] \"The frequency of the waveform in Hertz (Hz)\" /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
+	"make-delay-node: command [\"Creates a delay (echo) sound node\" delay [decimal! integer! time!] {The time before the echo is heard. Seconds, PCM frames or time.} decay [decimal! percent!] {Feedback decay (0.0 - 1.0). Affects how quickly or gradually the echoes fade away. 0 means no feedback.}]\n"\
+	"make-group-node: command [\"Creates a sound group node\"]\n"\
 	"volume: command [\"Set the volume\" sound [handle!] volume [percent! decimal!]]\n"\
 	"volume?: command [\"Get the volume\" sound [handle!]]\n"\
 	"pan: command [\"Set the pan\" sound [handle!] pan [decimal!]]\n"\

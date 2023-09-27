@@ -67,7 +67,7 @@ audio/play :device/resources/1
 wait 1
 
 ;- Using delay node...
-delay: audio/delay-node 0.25 50% ;; 0.25s delay with 50% decay
+delay: audio/make-delay-node 0.25 50% ;; 0.25s delay with 50% decay
 print ["Prepared delay:" delay/delay "frames and" delay/decay "decay."]
 ;; set the music output bus to the delay node...
 drums/output: :delay
@@ -86,7 +86,7 @@ wait 4
 a: 0
 b: PI
 with audio [
-	probe wave: waveform-node type_sine 0.5 440.0
+	probe wave: make-waveform-node type_sine 0.5 440.0
 	print ["amplitude:" wave/amplitude "frequency:" wave/frequency]
 	probe sound: play/fade wave 0:0:3 ;; start playing with a fade..
 	;; modify the wave's parameters while playing...

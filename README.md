@@ -138,30 +138,30 @@ Seek to specified position
 * `frames` `[integer! time!]`
 * `/relative` Relative to the current sound position
 
-#### `noise-node` `:type` `:amplitude`
-Create a noise node data source
-* `type` `[integer!]`
-* `amplitude` `[decimal!]`
+#### `make-noise-node` `:type` `:amplitude`
+Creates a noise node for generating random noise
+* `type` `[integer!]` The type of noise to generate (0 - 2)
+* `amplitude` `[decimal!]` The peak amplitude of the noise
 * `/seed` Optional random seed
 * `val` `[integer!]`
 * `/format` The sample format (default is 2 = signed 16bit float)
 * `frm` `[integer!]` Value betweem 1 - 5
 
-#### `waveform-node` `:type` `:amplitude` `:frequency`
-
-* `type` `[integer!]`
-* `amplitude` `[decimal!]`
-* `frequency` `[decimal!]`
+#### `make-waveform-node` `:type` `:amplitude` `:frequency`
+Creates a sound waveform node
+* `type` `[integer!]` The type of waveform to generate (0 - 3)
+* `amplitude` `[decimal!]` The peak amplitude of the waveform
+* `frequency` `[decimal!]` The frequency of the waveform in Hertz (Hz)
 * `/format` The sample format (default is 2 = signed 16bit float)
 * `frm` `[integer!]` Value betweem 1 - 5
 
-#### `delay-node` `:delay` `:decay`
+#### `make-delay-node` `:delay` `:decay`
+Creates a delay (echo) sound node
+* `delay` `[decimal! integer! time!]` The time before the echo is heard. Seconds, PCM frames or time.
+* `decay` `[decimal! percent!]` Feedback decay (0.0 - 1.0). Affects how quickly or gradually the echoes fade away. 0 means no feedback.
 
-* `delay` `[decimal! integer! time!]` Seconds, PCM frames or time
-* `decay` `[decimal! percent!]` Feedback decay (0.0 - 1.0) where 0 means no feedback
-
-#### `group-node`
-Make a sound group
+#### `make-group-node`
+Creates a sound group node
 
 #### `volume` `:sound` `:volume`
 Set the volume
