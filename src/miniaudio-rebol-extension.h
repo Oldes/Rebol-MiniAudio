@@ -17,6 +17,7 @@
 typedef struct my_engine {
 	ma_engine engine;
 	ma_device device;
+	RXICBI    callback;
 } my_engine;
 
 extern REBCNT Handle_MAEngine;
@@ -133,7 +134,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]\n"\
 	"init-words: command [args [block!] type [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
-	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used}]\n"\
+	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used} /period \"Hint for making up the device's entire buffer\" size [integer!] \"The desired size of a period in milliseconds\" /callback {On-data callback (two args.. buffer frames, and engine total frames)} context [object!] \"The function's context\" word [word!] \"The function's name\"]\n"\
 	"load: command [\"Loads a file and returns sound's handle\" sound [file!] /group {Group of sounds which have their own effect processing and volume control} node [handle!] \"ma-group handle\"]\n"\
 	"play: command [{Loads a file (if not already loaded) and starts playing it. Returns a sound handle.} sound [file! handle!] \"Source file or a ma-sound handle\" /stream \"Do not load the entire sound into memory\" /loop \"Turn looping on\" /volume vol [percent! decimal!] /fade in [integer! time!] \"PCM frames or time\" /group {Group of sounds which have their own effect processing and volume control} node [handle!] \"ma-group handle\"]\n"\
 	"pause: command [\"Pause sound playback\" sound [handle!]]\n"\

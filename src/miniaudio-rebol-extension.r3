@@ -19,9 +19,12 @@ commands: [
 		/pause    "Don't start it automatically"
 		/channels "The number of channels to use for playback" 
 		 number [integer!] "When set to 0 the device's native channel count will be used"
+		/period            "Hint for making up the device's entire buffer"
+		 size   [integer!] "The desired size of a period in milliseconds"
+		/callback "On-data callback (two args.. buffer frames, and engine total frames)"
+		 context [object!] "The function's context"
+		 word    [word!]   "The function's name"
 	]
-
-	
 
 	load:  [
 		"Loads a file and returns sound's handle"
@@ -331,6 +334,7 @@ header: {
 typedef struct my_engine {
 	ma_engine engine;
 	ma_device device;
+	RXICBI    callback;
 } my_engine;
 
 extern REBCNT Handle_MAEngine;

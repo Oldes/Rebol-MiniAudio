@@ -74,15 +74,29 @@ static void onSoundEnd(void* hob, ma_sound* pSound) {
 
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-	(void)pInput;
-	/*
-	Since we're managing the underlying device ourselves, we need to read from the engine directly.
-	To do this we need access to the `ma_engine` object which we passed in to the user data. One
-	advantage of this is that you could do your own audio processing in addition to the engine's
-	standard processing.
-	*/
-	ma_engine_read_pcm_frames((ma_engine*)pDevice->pUserData, pOutput, frameCount, NULL);
+	RXIARG args[4];
+	my_engine* myEngine;
 
+	(void)pInput;
+
+	myEngine = (my_engine*)pDevice->pUserData;
+
+	if (myEngine->callback.obj) {
+		CLEAR(&args[0], sizeof(args));
+		myEngine->callback.args = args;
+
+		// Pass a requested frame count and total engine frames count
+		RXI_COUNT(args) = 2;
+		RXI_TYPE(args, 1) = RXT_INTEGER;
+		args[1].uint64 = frameCount;
+
+		RXI_TYPE(args, 2) = RXT_INTEGER;
+		args[2].uint64 = ma_engine_get_time_in_pcm_frames(&myEngine->engine);
+
+		RL_CALLBACK(&myEngine->callback);
+	}
+
+	ma_engine_read_pcm_frames(&myEngine->engine, pOutput, frameCount, NULL);
 }
 
 
@@ -876,6 +890,7 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 	engine = (my_engine*)hob->data;
 
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
+	deviceConfig.periodSizeInMilliseconds = RXA_UINT64(frm, 6);;
 	deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[iChosenDevice].id;
 	deviceConfig.playback.format    = gResourceManager.config.decodedFormat;
 	deviceConfig.playback.channels  = RXA_INT64(frm, 4);
@@ -904,6 +919,13 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 	pEngine = engine;
 	pEngineHob = hob;
 	hob->series = RL_MAKE_BLOCK(10); // for keeping references to sound handles
+
+	if (RXA_REF(frm, 7)) {
+		// on-data callback
+		CLEAR(&engine->callback, sizeof(engine->callback));
+		engine->callback.obj  = RXA_OBJECT(frm, 8);
+		engine->callback.word = RXA_WORD(frm, 9);
+	}
 
 	RETURN_HANDLE(hob);
 }
