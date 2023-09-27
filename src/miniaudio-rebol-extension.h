@@ -24,6 +24,7 @@ extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 extern REBCNT Handle_MADelay;
+extern REBCNT Handle_MAGroup;
 
 extern u32* arg_words;
 extern u32* type_words;
@@ -42,6 +43,7 @@ enum ext_commands {
 	CMD_MINIAUDIO_NOISE_NODE,
 	CMD_MINIAUDIO_WAVEFORM_NODE,
 	CMD_MINIAUDIO_DELAY_NODE,
+	CMD_MINIAUDIO_GROUP_NODE,
 	CMD_MINIAUDIO_VOLUME,
 	CMD_MINIAUDIO_VOLUMEQ,
 	CMD_MINIAUDIO_PAN,
@@ -67,6 +69,7 @@ int cmd_seek(RXIFRM *frm, void *ctx);
 int cmd_noise_node(RXIFRM *frm, void *ctx);
 int cmd_waveform_node(RXIFRM *frm, void *ctx);
 int cmd_delay_node(RXIFRM *frm, void *ctx);
+int cmd_group_node(RXIFRM *frm, void *ctx);
 int cmd_volume(RXIFRM *frm, void *ctx);
 int cmd_volumeq(RXIFRM *frm, void *ctx);
 int cmd_pan(RXIFRM *frm, void *ctx);
@@ -131,8 +134,8 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"init-words: command [args [block!] type [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used}]\n"\
-	"load: command [\"Loads a file and returns sound's handle\" sound [file!]]\n"\
-	"play: command [{Loads a file (if not already loaded) and starts playing it. Returns a sound handle.} sound [file! handle!] \"Source file or a ma-sound handle\" /stream \"Do not load the entire sound into memory\" /loop \"Turn looping on\" /volume vol [percent! decimal!] /fade in [integer! time!] \"PCM frames or time\"]\n"\
+	"load: command [\"Loads a file and returns sound's handle\" sound [file!] /group {Group of sounds which have their own effect processing and volume control} node [handle!] \"ma-group handle\"]\n"\
+	"play: command [{Loads a file (if not already loaded) and starts playing it. Returns a sound handle.} sound [file! handle!] \"Source file or a ma-sound handle\" /stream \"Do not load the entire sound into memory\" /loop \"Turn looping on\" /volume vol [percent! decimal!] /fade in [integer! time!] \"PCM frames or time\" /group {Group of sounds which have their own effect processing and volume control} node [handle!] \"ma-group handle\"]\n"\
 	"pause: command [\"Pause sound playback\" sound [handle!]]\n"\
 	"start: command [\"Start sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /loop \"Turn looping on (only for sounds)\" /seek \"Starting position\" frames [integer! time!] \"PCM frames or time\" /fade \"Fade in the sound\" in [integer! time!] \"PCM frames or time\" /at {Absolute engine time when the sound should be started} time [integer! time!] \"PCM frames or time\"]\n"\
 	"stop: command [\"Stop sound or device playback\" handle [handle!] \"ma-sound or ma-engine handle\" /fade out [integer! time!] \"PCM frames or time (only for sounds)\"]\n"\
@@ -141,6 +144,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"noise-node: command [\"Create a noise node data source\" type [integer!] amplitude [decimal!] /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
 	"waveform-node: command [type [integer!] amplitude [decimal!] frequency [decimal!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
 	"delay-node: command [delay [decimal! integer! time!] \"Seconds, PCM frames or time\" decay [decimal! percent!] {Feedback decay (0.0 - 1.0) where 0 means no feedback}]\n"\
+	"group-node: command [\"Make a sound group\"]\n"\
 	"volume: command [\"Set the volume\" sound [handle!] volume [percent! decimal!]]\n"\
 	"volume?: command [\"Get the volume\" sound [handle!]]\n"\
 	"pan: command [\"Set the pan\" sound [handle!] pan [decimal!]]\n"\

@@ -15,7 +15,9 @@
 #define ARG_Is_MASound(n)     FRM_IS_HANDLE(n, Handle_MASound)
 #define ARG_Is_MANoise(n)     FRM_IS_HANDLE(n, Handle_MANoise)
 #define ARG_Is_MAWaveform(n)  FRM_IS_HANDLE(n, Handle_MAWaveform)
+#define ARG_Is_MAGroup(n)     FRM_IS_HANDLE(n, Handle_MAGroup)
 #define ARG_MASound(n)        (ARG_Is_MASound(n)    ? (ma_sound*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
+#define ARG_MAGroup(n)        (ARG_Is_MAGroup(n)    ? (ma_sound_group*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MANoise(n)        (ARG_Is_MANoise(n)    ? (ma_noise*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MAWaveform(n)     (ARG_Is_MAWaveform(n) ? (ma_waveform*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_Is_DataSource(n)  (RXA_TYPE(frm,n) == RXT_HANDLE && (RXA_HANDLE_TYPE(frm, n) == Handle_MANoise || RXA_HANDLE_TYPE(frm, n) == Handle_MAWaveform) )
@@ -23,6 +25,7 @@
 #define ARG_Double(n)         RXA_DEC64(frm,n)
 #define ARG_Float(n)          (float)RXA_DEC64(frm,n)
 #define ARG_Int32(n)          RXA_INT32(frm,n)
+#define ARG_Handle_Series(n)  RXA_HANDLE_CONTEXT(frm, n)->series;
 
 #define RETURN_HANDLE(hob)                   \
 	RXA_HANDLE(frm, 1)       = hob;          \
@@ -206,8 +209,8 @@ int MASound_free(void* hndl) {
 	// Don't release it, if not referenced but still playing...
 	if(!IS_MARK_HOB(hob) && ma_sound_is_playing(sound)) {
 		puts("preventing sound release?");
-		//MARK_HOB(hob);
-		//return 0;
+		MARK_HOB(hob);
+		return 0;
 	}
 
 	UNMARK_HOB(hob);
@@ -423,6 +426,202 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	if (r != MA_SUCCESS) return PE_BAD_SET;
 	return PE_OK;
 }
+
+
+int MAGroup_free(void* hndl) {
+	REBHOB *hob;
+	if (!hndl) return 0;
+	hob = (REBHOB *)hndl;
+	printf("release sound group: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
+
+	ma_sound_group *group = (ma_sound_group*)hob->data;
+
+	// Don't release it, if not referenced but still playing...
+	if(!IS_MARK_HOB(hob) && ma_sound_group_is_playing(group)) {
+		puts("preventing group release?");
+		MARK_HOB(hob);
+		return 0;
+	}
+
+	UNMARK_HOB(hob);
+	ma_sound_group_uninit(group);
+	if (hob->series) {
+		RESET_SERIES(hob->series);
+		hob->series = NULL;
+	}
+	return 0;
+}
+int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_sound_group* group = (ma_sound_group*)hob->data;
+	word = RL_FIND_WORD(arg_words, word);
+	ma_uint64 frames;
+	ma_uint32 sampleRate;
+	ma_vec3f pos;
+
+	switch (word) {
+	case W_ARG_VOLUME:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_group_get_volume(group);
+		break;
+	case W_ARG_POSITION:
+		*type = RXT_PAIR;
+		pos = ma_sound_group_get_position(group);
+		arg->dec32a = pos.x;
+		arg->dec32b = pos.y;
+		break;
+	case W_ARG_PAN:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_group_get_pan(group);
+		break;
+	case W_ARG_PITCH:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_group_get_pitch(group);
+		break;
+	case W_ARG_SAMPLE_RATE:
+		*type = RXT_INTEGER;
+		arg->int64 = ma_engine_get_sample_rate(ma_sound_get_engine(group));
+		break;
+	case W_ARG_SPATIALIZE:
+		*type = RXT_LOGIC;
+		arg->int32a = ma_sound_group_is_spatialization_enabled(group);
+		break;
+	case W_ARG_IS_PLAYING:
+		*type = RXT_LOGIC;
+		arg->int32a = ma_sound_group_is_playing(group);
+		break;
+	case W_ARG_START:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_state_time(group, ma_node_state_started);
+		break;	
+	case W_ARG_STOP:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_state_time(group, ma_node_state_stopped);
+		break;
+
+	case W_ARG_X:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_group_get_position(group);
+		arg->dec64 = pos.x;
+		break;
+	case W_ARG_Y:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_group_get_position(group);
+		arg->dec64 = pos.y;
+		break;
+	case W_ARG_Z:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_group_get_position(group);
+		arg->dec64 = pos.z;
+		break;
+	case W_ARG_OUTPUTS:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_node_get_output_bus_count((ma_node*)group);
+		break;
+	case W_ARG_RESOURCES:
+		*type = RXT_BLOCK;
+		arg->series = hob->series;
+		arg->index = 0;
+		break;
+	default:
+		return PE_BAD_SELECT;	
+	}
+
+	return PE_USE;
+}
+int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_sound_group* group = (ma_sound_group*)hob->data;
+	ma_engine* engine;
+	word = RL_FIND_WORD(arg_words, word);
+	ma_uint64 frames;
+	ma_result r = MA_SUCCESS;
+	ma_vec3f pos;
+	ma_node *node;
+
+	switch (word) {
+	case W_ARG_VOLUME:
+		switch (*type) {
+		case RXT_DECIMAL:
+		case RXT_PERCENT:
+			ma_sound_group_set_volume(group, arg->dec64);
+			break;
+		case RXT_INTEGER:
+			ma_sound_group_set_volume(group, (float)arg->int64);
+			break;
+		default: 
+			return PE_BAD_SET_TYPE;
+		}
+		break;
+	case W_ARG_POSITION:
+		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;
+		pos = ma_sound_group_get_position(group);
+		ma_sound_group_set_position(group, arg->dec32a, arg->dec32b, pos.z);
+		break;
+	case W_ARG_PAN:
+		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
+		ma_sound_group_set_pan(group, arg->dec64);
+		break;
+	case W_ARG_PITCH:
+		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
+		ma_sound_group_set_pitch(group, arg->dec64);
+		break;
+	case W_ARG_SPATIALIZE:
+		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
+		ma_sound_group_set_spatialization_enabled(group, arg->int32a);
+		break;
+
+	case W_ARG_START:
+	case W_ARG_STOP:
+		if (arg->int64 < 0) return PE_BAD_SET; // allow only positive time
+		if   (*type == RXT_INTEGER) frames = abs_sound_frames(arg, group);
+		else if (*type == RXT_TIME) frames = abs_sound_time_to_frames(arg, group);
+		else return PE_BAD_SET_TYPE;
+		if (word == W_ARG_START)
+			ma_sound_group_set_start_time_in_pcm_frames(group, frames);
+		else
+			ma_sound_group_set_stop_time_in_pcm_frames(group, frames);
+		break;
+
+	case W_ARG_X:
+	case W_ARG_Y:
+	case W_ARG_Z:
+		*type = RXT_DECIMAL;
+		pos = ma_sound_group_get_position(group);
+		switch(word) {
+		case W_ARG_X: pos.x = (float)arg->dec64; break; 
+		case W_ARG_Y: pos.y = (float)arg->dec64; break; 
+		case W_ARG_Z: pos.z = (float)arg->dec64; break; 
+		}
+		ma_sound_group_set_position(group, pos.x, pos.y, pos.z);
+
+		break;
+
+	case W_ARG_OUTPUT:
+		if (*type == RXT_NONE) {
+			ma_node_detach_output_bus(group, 0);
+			break;
+		}
+		if (
+			*type != RXT_HANDLE ||
+			! arg->handle.hob   || 
+			!(arg->handle.type == Handle_MADelay || arg->handle.type == Handle_MAEngine)
+		) return PE_BAD_SET_TYPE;
+		
+		if (arg->handle.type == Handle_MADelay) {
+			node = (ma_node*)arg->handle.hob->data;
+		} else {
+			engine = (ma_engine*)arg->handle.hob->data;
+			node = ma_node_graph_get_endpoint(&engine->nodeGraph);
+		}
+		r = ma_node_attach_output_bus(group, 0, node, 0);
+		break;
+
+	default:
+		return PE_BAD_SET;	
+	}
+	if (r != MA_SUCCESS) return PE_BAD_SET;
+	return PE_OK;
+}
+
 
 int MANoise_free(void* hndl) {
 	if (hndl != NULL) {
@@ -712,12 +911,19 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 
 COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 	ma_sound *sound;
+	ma_sound_group *group = NULL;
 	ma_uint32 flags = 0;
 	REBHOB* hob = NULL;
 	REBI64 frames;
 	REBSER* ser;
+	REBSER* blk;
 
 	ASSERT_ENGINE();
+
+	if (RXA_REF(frm, 8)) {
+		group = ARG_MAGroup(9);
+		if (!group) RETURN_ERROR("Invalid group handle.");
+	}
 
 	if (RXA_TYPE(frm, 1) == RXT_FILE) {
 		ser = RL_TO_LOCAL_PATH(&RXA_ARG(frm, 1), 1, 1);
@@ -729,7 +935,7 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 		sound = (ma_sound*)hob->data;
 
 		if (RXA_REF(frm, 2)) flags |= MA_SOUND_FLAG_STREAM;
-		if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, flags, NULL, NULL, sound))
+		if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, flags, group, NULL, sound))
 			RETURN_ERROR("Failed to initialize the sound from file.");
 
 		// store the full path of the source file in the handle
@@ -746,7 +952,7 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 		hob = RL_MAKE_HANDLE_CONTEXT(Handle_MASound);
 		if (hob == NULL) return RXR_NONE;
 		sound = (ma_sound*)hob->data;
-		if (MA_SUCCESS != ma_sound_init_from_data_source(&pEngine->engine, source, 0, NULL, sound))
+		if (MA_SUCCESS != ma_sound_init_from_data_source(&pEngine->engine, source, 0, group, sound))
 			RETURN_ERROR("Failed to initialize the sound from a data source.");
 
 		// store the datasource in the sound, so it it markable from GC
@@ -778,9 +984,17 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 		RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
 		RXA_TYPE(frm, 1) = RXT_HANDLE;
 
-		REBSER *blk = pEngineHob->series;
+		blk = pEngineHob->series;
 		RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
+
+		if (group) {
+			// store the sound reference also in the group
+			blk = ARG_Handle_Series(9);
+			RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
+		}
 	}
+
+
 	return RXR_VALUE;
 }
 
@@ -949,10 +1163,17 @@ COMMAND cmd_seek(RXIFRM *frm, void *ctx) {
 COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	ma_result result;
 	ma_sound *sound;
+	ma_sound_group *group = NULL;
 	REBHOB* hob;
 	REBSER* ser;
+	REBSER* blk;
 
 	ASSERT_ENGINE();
+
+	if (RXA_REF(frm, 2)) {
+		group = ARG_MAGroup(3);
+		if (!group) RETURN_ERROR("Invalid group handle.");
+	}
 
 	hob = RL_MAKE_HANDLE_CONTEXT(Handle_MASound);
 	if (hob == NULL) return RXR_NONE;
@@ -963,7 +1184,7 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	if (!ser) RETURN_ERROR("Failed to convert the file name.");
 	const char* file = (const char*)SERIES_DATA(ser);
 
-	if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, 0, NULL, NULL, sound))
+	if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, 0, group, NULL, sound))
 		RETURN_ERROR("Failed to initialize the sound from a file.");
 
 	// store the full path of the source file in the handle
@@ -977,8 +1198,14 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
 	RXA_TYPE(frm, 1) = RXT_HANDLE;
 
-	REBSER *blk = pEngineHob->series;
+	blk = pEngineHob->series;
 	RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
+
+	if (group) {
+		// store the sound reference also in the group
+		blk = ARG_Handle_Series(3);
+		RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
+	}
 
 	return RXR_VALUE;
 }
@@ -1080,6 +1307,31 @@ COMMAND cmd_delay_node(RXIFRM *frm, void *ctx) {
 	ma_node_attach_output_bus(delay, 0, ma_engine_get_endpoint(&pEngine->engine), 0);
 
 	hob->series = NULL;
+	RXA_HANDLE(frm, 1)       = hob;
+	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
+	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
+	RXA_TYPE(frm, 1) = RXT_HANDLE;
+
+	/* Keep the reference to the handle so it is not released by GC */
+	REBSER *blk = pEngineHob->series;
+	RL_SET_VALUE(blk, blk->tail, RXA_ARG(frm, 1), RXT_HANDLE);
+
+	return RXR_VALUE;
+}
+
+COMMAND cmd_group_node(RXIFRM *frm, void *ctx) {
+	ma_sound_group *group;
+
+	ASSERT_ENGINE();
+
+	REBHOB* hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAGroup);
+	if (hob == NULL) return RXR_NONE;
+	group = (ma_sound_group*)hob->data;
+
+	if (MA_SUCCESS != ma_sound_group_init(&pEngine->engine, 0, NULL, group))
+		RETURN_ERROR("Failed to initialize the sound group.");
+
+	hob->series = RL_MAKE_BLOCK(1);
 	RXA_HANDLE(frm, 1)       = hob;
 	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
 	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;

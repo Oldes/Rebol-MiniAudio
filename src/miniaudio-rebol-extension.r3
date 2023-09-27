@@ -23,7 +23,12 @@ commands: [
 
 	
 
-	load:  ["Loads a file and returns sound's handle" sound [file!]]
+	load:  [
+		"Loads a file and returns sound's handle"
+		sound [file!]
+		/group "Group of sounds which have their own effect processing and volume control"
+		 node [handle!] "ma-group handle"
+	]
 	;copy:  [sound [handle!]]
 
 
@@ -34,6 +39,8 @@ commands: [
 		/loop   "Turn looping on"
 		/volume vol [percent! decimal!]
 		/fade   in  [integer! time!] "PCM frames or time"
+		/group  "Group of sounds which have their own effect processing and volume control"
+		 node [handle!] "ma-group handle"
 	]
 	pause: [
 		"Pause sound playback"
@@ -87,6 +94,10 @@ commands: [
 	delay-node: [
 		delay [decimal! integer! time!] "Seconds, PCM frames or time"
 		decay [decimal! percent!] "Feedback decay (0.0 - 1.0) where 0 means no feedback"
+	]
+
+	group-node: [
+		"Make a sound group"
 	]
 	
 	;; Keep these (s|g)etters?
@@ -144,6 +155,27 @@ handles: make map! [
 		source        [file! handle!] none           "Sound source as a loaded file or data source node"
 		outputs        integer!   none               "Number of output buses"
 		output         handle!   [handle! none!]     "Output bus node"
+	]
+	ma-group: [
+		"MiniAudio sound group"
+		;NAME          GET       SET                 DESCRIPTION
+		volume         decimal!  [integer! decimal! percent!] "Sound volume"
+		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
+		pitch          decimal!   decimal!           "Sound group pitch"
+		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"
+		time           time!      time!              "Sound group playback position as time"
+		duration       time!      none               "Sound group duration in time"
+		sample-rate    integer!   none               "Number of samples per second"
+		spatialize     logic!     logic!             "3D spatialization state"
+		is-playing     logic!     logic!             "Whether sound is playing"
+		start          integer!  [integer! time!]    "Absolute timer when the sound should be started (frames or time)"
+		stop           integer!  [integer! time!]    "Absolute timer when the sound should be stopped (frames or time)"
+		x              decimal!  [integer! decimal!] "Sound group X position"
+		y              decimal!  [integer! decimal!] "Sound group Y position"
+		z              decimal!  [integer! decimal!] "Sound group Z position"
+		outputs        integer!   none               "Number of output buses"
+		output         handle!   [handle! none!]     "Output bus node"
+		resources      block!     none               "Used group resources (sounds, nodes..)"
 	]
 	ma-engine: [
 		"MiniAudio device engine"
@@ -305,6 +337,7 @@ extern REBCNT Handle_MASound;
 extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 extern REBCNT Handle_MADelay;
+extern REBCNT Handle_MAGroup;
 
 extern u32* arg_words;
 extern u32* type_words;
