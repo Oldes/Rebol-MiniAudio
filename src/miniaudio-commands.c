@@ -1038,6 +1038,8 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
 	if (!IS_USED_HOB(hob)) return RXR_FALSE; // already released handle!
 
+	ASSERT_ENGINE();
+
 	if (RXA_HANDLE_TYPE(frm, 1) == Handle_MASound) {
 		sound = ARG_MASound(1);
 		if (sound == NULL) return RXR_FALSE;
@@ -1054,6 +1056,10 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 			}
 		}
 		ma_sound_seek_to_pcm_frame(sound, frame);
+		// If the stop time is in the past, reset it to the future; otherwise, the sound will not play again.
+		// See: https://github.com/mackron/miniaudio/issues/714
+		if (ma_node_get_state_time((ma_node*)sound, ma_node_state_stopped) <= ma_engine_get_time_in_pcm_frames(&pEngine->engine))
+			ma_sound_set_stop_time_in_pcm_frames(sound, ~(ma_uint64)0);
 
 		if (RXA_REF(frm, 7)) { // /at
 			if (RXA_INT64(frm, 8) < 0) RXA_INT64(frm, 8) = 0;
