@@ -111,7 +111,9 @@ enum ma_arg_words {W_ARG_0,
 	W_ARG_TYPE,
 	W_ARG_FREQUENCY,
 	W_ARG_DELAY,
-	W_ARG_DECAY
+	W_ARG_DECAY,
+	W_ARG_DRY,
+	W_ARG_WET
 };
 enum ma_type_words {W_TYPE_0,
 	W_TYPE_WHITE,
@@ -144,7 +146,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"seek: command [\"Seek to specified position\" sound [handle!] frames [integer! time!] /relative \"Relative to the current sound position\"]\n"\
 	"make-noise-node: command [\"Creates a noise node for generating random noise\" type [integer!] \"The type of noise to generate (0 - 2)\" amplitude [decimal!] \"The peak amplitude of the noise\" /seed \"Optional random seed\" val [integer!] /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
 	"make-waveform-node: command [\"Creates a sound waveform node\" type [integer!] \"The type of waveform to generate (0 - 3)\" amplitude [decimal!] \"The peak amplitude of the waveform\" frequency [decimal!] \"The frequency of the waveform in Hertz (Hz)\" /format {The sample format (default is 2 = signed 16bit float)} frm [integer!] \"Value betweem 1 - 5\"]\n"\
-	"make-delay-node: command [\"Creates a delay (echo) sound node\" delay [decimal! integer! time!] {The time before the echo is heard. Seconds, PCM frames or time.} decay [decimal! percent!] {Feedback decay (0.0 - 1.0). Affects how quickly or gradually the echoes fade away. 0 means no feedback.}]\n"\
+	"make-delay-node: command [\"Creates a delay (echo) sound node\" delay [decimal! integer! time!] {The time before the echo is heard. Seconds, PCM frames or time.} decay [decimal! percent!] {Feedback decay (0.0 - 1.0). Affects how quickly or gradually the echoes fade away. 0 means no feedback.} /dry \"The mix level of the dry (original) sound\" d [decimal! percent!] /wet \"The mix level of the wet (delayed) sound\" w [decimal! percent!]]\n"\
 	"make-group-node: command [\"Creates a sound group node\"]\n"\
 	"volume: command [\"Set the volume\" sound [handle!] volume [percent! decimal!]]\n"\
 	"volume?: command [\"Get the volume\" sound [handle!]]\n"\
@@ -155,7 +157,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"looping: command [\"Set the looping\" sound [handle!] value [logic!]]\n"\
 	"looping?: command [\"Get the looping\" sound [handle!]]\n"\
 	"end?: command [\"Return true if sound ended\" sound [handle!]]\n"\
-	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source outputs output resources channels gain-db amplitude format type frequency delay decay][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
+	"init-words [volume pan pitch position cursor time duration frames sample-rate spatialize is-looping is-playing at-end start stop x y z source outputs output resources channels gain-db amplitude format type frequency delay decay dry wet][white pink brownian sine square triangle sawtooth f32 s16 s24 s32 u8]\n"\
 	"protect/hide 'init-words\n"\
 	"\n"\
 	";; Waveform types\n"\

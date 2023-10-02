@@ -752,6 +752,14 @@ int MADelay_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = node->delay.config.decay;
 		break;
+	case W_ARG_DRY:
+		*type = RXT_DECIMAL;
+		arg->dec64 = node->delay.config.dry;
+		break;
+	case W_ARG_WET:
+		*type = RXT_DECIMAL;
+		arg->dec64 = node->delay.config.wet;
+		break;
 	default:
 		return PE_BAD_SELECT;	
 	}
@@ -764,6 +772,14 @@ int MADelay_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	case W_ARG_DECAY:
 		if (*type != RXT_DECIMAL && *type != RXT_PERCENT) return PE_BAD_SET_TYPE;
 		ma_delay_set_decay(&node->delay, (float)arg->dec64);
+		break;
+	case W_ARG_DRY:
+		if (*type != RXT_DECIMAL && *type != RXT_PERCENT) return PE_BAD_SET_TYPE;
+		ma_delay_set_dry(&node->delay, (float)arg->dec64);
+		break;
+	case W_ARG_WET:
+		if (*type != RXT_DECIMAL && *type != RXT_PERCENT) return PE_BAD_SET_TYPE;
+		ma_delay_set_wet(&node->delay, (float)arg->dec64);
 		break;
 	default:
 		return PE_BAD_SET;	
@@ -1327,6 +1343,10 @@ COMMAND cmd_make_delay_node(RXIFRM *frm, void *ctx) {
 	decay = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 2)));
 
 	ma_delay_node_config config = ma_delay_node_config_init(channels, sampleRate, delayInFrames, decay);
+
+	if (RXA_REF(frm, 3)) config.delay.dry = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 4)));
+	if (RXA_REF(frm, 5)) config.delay.wet = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 6)));
+
 
 	if (MA_SUCCESS != ma_delay_node_init(ma_engine_get_node_graph(&pEngine->engine), &config, NULL, delay))
 		RETURN_ERROR("Failed to initialize the delay node.");

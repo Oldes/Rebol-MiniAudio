@@ -164,6 +164,10 @@ Creates a sound waveform node
 Creates a delay (echo) sound node
 * `delay` `[decimal! integer! time!]` The time before the echo is heard. Seconds, PCM frames or time.
 * `decay` `[decimal! percent!]` Feedback decay (0.0 - 1.0). Affects how quickly or gradually the echoes fade away. 0 means no feedback.
+* `/dry` The mix level of the dry (original) sound
+* `d` `[decimal! percent!]`
+* `/wet` The mix level of the wet (delayed) sound
+* `w` `[decimal! percent!]`
 
 #### `make-group-node`
 Creates a sound group node
@@ -299,6 +303,8 @@ Return true if sound ended
 ;Refinement       Gets                Sets                          Description
 /delay            integer!            none                          "PCM frames"
 /decay            decimal!            [decimal! percent!]           "Value between 0.0 and 1.0"
+/dry              decimal!            [decimal! percent!]           "The mix level of the dry (original) sound"
+/wet              decimal!            [decimal! percent!]           "The mix level of the wet (delayed) sound"
 ```
 
 
