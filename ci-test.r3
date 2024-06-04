@@ -3,6 +3,8 @@ Rebol [
 ]
 
 print ["Running test on Rebol build:" mold to-block system/build]
+system/options/quiet: false
+system/options/log/rebol: 4
 
 ;; make sure that we load a fresh extension
 try [system/modules/miniaudio: none]
