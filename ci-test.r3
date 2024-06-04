@@ -17,4 +17,5 @@ audio: import 'miniaudio
 print as-yellow "Content of the module..."
 ? audio
 
+;; run a real test file...
 do %test.r3

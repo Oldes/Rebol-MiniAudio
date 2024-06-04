@@ -2,15 +2,20 @@ Rebol [
 	title: "Rebol/MiniAudio extension test"
 ]
 
-print ["Running test on Rebol build:" mold to-block system/build]
-
-;; make sure that we load a fresh extension
-try [system/modules/miniaudio: none]
-
 audio: import miniaudio
 
 ;; list all available devices:
-print audio/get-devices
+devices: transcode audio/get-devices
+? devices
+
+if any [
+	empty? devices/playback
+	devices/playback/1 = "Null Audio Device"
+][
+	;; GitHub Actions on Windows and macOS does not have any audio device.
+	print as-purple "No audio device found."
+	quit
+]
 
 ;; init a playback device (first available)...
 ;; keep the reference to the device handle, else it will be released by GC!
