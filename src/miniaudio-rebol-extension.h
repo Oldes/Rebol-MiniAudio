@@ -1,7 +1,13 @@
-
+//   ____  __   __        ______        __
+//  / __ \/ /__/ /__ ___ /_  __/__ ____/ /
+// / /_/ / / _  / -_|_-<_ / / / -_) __/ _ \
+// \____/_/\_,_/\__/___(@)_/  \__/\__/_// /
+//  ~~~ oldes.huhuman at gmail.com ~~~ /_/
 //
-// auto-generated file, do not modify!
-//
+// Project: Rebol/MiniAudio extension
+// SPDX-License-Identifier: MIT
+// =============================================================================
+// NOTE: auto-generated file, do not modify!
 
 #include "rebol-extension.h"
 #include "miniaudio.h"
@@ -133,7 +139,7 @@ enum ma_type_words {W_TYPE_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]\n"\
+	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.21.0 Author: Oldes Date: 4-Jun-2024/9:10:20 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
 	"init-words: command [args [block!] type [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used} /period \"Hint for making up the device's entire buffer\" size [integer!] \"The desired size of a period in milliseconds\" /callback {On-data callback (two args.. buffer frames, and engine total frames)} context [object!] \"The function's context\" word [word!] \"The function's name\"]\n"\

@@ -18,7 +18,8 @@ print audio/get-devices
 probe device: audio/init-playback/pause 1
 
 ;; load a sound for later use...
-probe sound: audio/load %assets/zblunk_02.wav
+probe sound: audio/load probe %assets/žbluňk_02.wav
+print as-green sound/source
 
 ;; changing the initial playback start time offset in PCM frames
 device/frames: 44100
@@ -34,6 +35,7 @@ wait 1
 ;; play a looping sound...
 print "Now start a loop with fast fade-in (0.5 seconds)..."
 probe drums: audio/play/loop/fade %assets/drumloop.wav 0:0:0.5
+print as-green drums/source
 
 ;; list resources linked with the playback device...
 print ["Available sounds:" mold device/resources]

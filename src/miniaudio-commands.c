@@ -1,3 +1,10 @@
+//   ____  __   __        ______        __
+//  / __ \/ /__/ /__ ___ /_  __/__ ____/ /
+// / /_/ / / _  / -_|_-<_ / / / -_) __/ _ \
+// \____/_/\_,_/\__/___(@)_/  \__/\__/_// /
+//  ~~~ oldes.huhuman at gmail.com ~~~ /_/
+//
+// SPDX-License-Identifier: MIT
 // =============================================================================
 // Rebol/MiniAudio extension commands
 // =============================================================================
@@ -68,6 +75,27 @@ static ma_uint64 abs_sound_time_to_frames(RXIARG *arg, ma_sound *sound) {
 	return frames + ma_engine_get_time_in_pcm_frames(engine);
 }
 
+static ma_result sound_init_from_arg(RXIARG *file, REBSER **out_ser, ma_uint32 flags, ma_sound_group* pGroup, ma_fence* pDoneFence, ma_sound* pSound) {
+	ma_result result;
+	// Convert Rebol file to full local path
+	// Not using UTF-8 yet, because this series is stored and accessible from Rebol!
+	REBSER *ser = RL_TO_LOCAL_PATH(file, 1, 0);
+	if (!ser) return MA_INVALID_FILE;
+	*out_ser = ser;
+
+#ifdef TO_WINDOWS
+	// On Windows the result is always a wide-character string
+	result = ma_sound_init_from_file_w(&pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
+#else
+	// On Posix convert to UTF-8 first
+	REBSER *utf = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), 1, 0);
+	if (!utf) return MA_INVALID_FILE;
+    result = ma_sound_init_from_file(&pEngine->engine, (const char*)SERIES_DATA(utf), 0, pGroup, NULL, pSound);
+#endif
+	return result;
+}
+
+
 static void onSoundEnd(void* hob, ma_sound* pSound) {
 	trace("sound end ");
 }
@@ -104,7 +132,7 @@ int Common_mold(REBHOB *hob, REBSER *str) {
 	int len;
 	if (!str) return 0;
 	SERIES_TAIL(str) = 0;
-	APPEND_STRING(str, "0#%lx", (unsigned long)hob->data);
+	APPEND_STRING(str, "0#%lx", (unsigned long)(uintptr_t)hob->data);
 	return len;
 }
 
@@ -964,16 +992,12 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 	}
 
 	if (RXA_TYPE(frm, 1) == RXT_FILE) {
-		ser = RL_TO_LOCAL_PATH(&RXA_ARG(frm, 1), 1, 1);
-		if (!ser) RETURN_ERROR("Failed to convert the file name.");
-		const char* file = (const char*)SERIES_DATA(ser);
-
 		hob = RL_MAKE_HANDLE_CONTEXT(Handle_MASound);
 		if (hob == NULL) return RXR_NONE;
 		sound = (ma_sound*)hob->data;
 
 		if (RXA_REF(frm, 2)) flags |= MA_SOUND_FLAG_STREAM;
-		if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, flags, group, NULL, sound))
+		if (MA_SUCCESS != sound_init_from_arg(&RXA_ARG(frm, 1), &ser, flags, group, NULL, sound))
 			RETURN_ERROR("Failed to initialize the sound from file.");
 
 		// store the full path of the source file in the handle
@@ -1223,13 +1247,9 @@ COMMAND cmd_load(RXIFRM *frm, void *ctx) {
 	if (hob == NULL) return RXR_NONE;
 	sound = (ma_sound*)hob->data;
 
-	ser = RL_TO_LOCAL_PATH(&RXA_ARG(frm, 1), 1, 1);
+	result = sound_init_from_arg(&RXA_ARG(frm, 1), &ser, 0, group, NULL, sound);	
+	if (result != MA_SUCCESS) RETURN_ERROR("Failed to initialize the sound from a file.");
 
-	if (!ser) RETURN_ERROR("Failed to convert the file name.");
-	const char* file = (const char*)SERIES_DATA(ser);
-
-	if (MA_SUCCESS != ma_sound_init_from_file(&pEngine->engine, file, 0, group, NULL, sound))
-		RETURN_ERROR("Failed to initialize the sound from a file.");
 
 	// store the full path of the source file in the handle
 	hob->series = RL_MAKE_BLOCK(1);

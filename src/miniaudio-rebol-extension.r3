@@ -1,9 +1,9 @@
 REBOL [
 	title:  "Rebol/MiniAudio module builder"
 	type:    module
-	date:    8-Sep-2023
+	date:    4-Jun-2024
 	home:    https://github.com/Oldes/Rebol-MiniAudio
-	version: 0.11.18.1
+	version: 0.11.21.0
 	author: @Oldes
 ]
 
@@ -262,7 +262,31 @@ type-words: [
 
 
 ;-------------------------------------- ----------------------------------------
-reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.18.1]}
+reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.21.0 needs: 3.14.1]}
+reb-code: ajoin [
+	{REBOL [Title: "Rebol MiniAudio Extension"}
+	{ Name: miniaudio Type: module}
+	{ Version: 0.11.21.0}
+	{ Author: Oldes}
+	{ Date: } now/utc
+	{ License: MIT}
+	{ Url: https://github.com/Oldes/Rebol-MiniAudio}
+	#"]"
+]
+
+logo: next {
+//   ____  __   __        ______        __
+//  / __ \/ /__/ /__ ___ /_  __/__ ____/ /
+// / /_/ / / _  / -_|_-<_ / / / -_) __/ _ \
+// \____/_/\_,_/\__/___(@)_/  \__/\__/_// /
+//  ~~~ oldes.huhuman at gmail.com ~~~ /_/
+//
+// Project: Rebol/MiniAudio extension
+// SPDX-License-Identifier: MIT
+// =============================================================================
+// NOTE: auto-generated file, do not modify!
+}
+
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
@@ -321,11 +345,7 @@ foreach line split reb-code lf [
 ]
 
 ;-- C file templates -----------------------------------------------------------
-header: {
-//
-// auto-generated file, do not modify!
-//
-
+header: {$logo
 #include "rebol-extension.h"
 #include "miniaudio.h"
 
@@ -376,10 +396,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 }
 ;;------------------------------------------------------------------------------
-ctable: {
-//
-// auto-generated file, do not modify!
-//
+ctable: {$logo
 #include "miniaudio-rebol-extension.h"
 MyCommandPointer Command[] = {
 $cmd-dispatch};

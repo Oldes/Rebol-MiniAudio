@@ -15,7 +15,4 @@ audio: import 'miniaudio
 print as-yellow "Content of the module..."
 ? audio
 
-print as-yellow "List all available playback and capture devices..."
-probe load audio/get-devices
-
-;; Is there any audio available for CI test?
+do %test.r3
