@@ -6,7 +6,7 @@ audio: import miniaudio
 
 ;; list all available devices:
 devices: transcode audio/get-devices
-? devices
+?? devices
 
 if any [
 	empty? devices/playback
