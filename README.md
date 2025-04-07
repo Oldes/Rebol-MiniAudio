@@ -1,5 +1,8 @@
+[![rebol-miniaudio](https://github.com/user-attachments/assets/c9c6d0fe-b411-42b9-9c4d-958c4a477ba5)](https://github.com/Oldes/Rebol-MiniAudio)
+
 [![Rebol-MiniAudio CI](https://github.com/Oldes/Rebol-MiniAudio/actions/workflows/main.yml/badge.svg)](https://github.com/Oldes/Rebol-MiniAudio/actions/workflows/main.yml)
 [![Gitter](https://badges.gitter.im/rebol3/community.svg)](https://app.gitter.im/#/room/#Rebol3:gitter.im)
+[![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://rebol.zulipchat.com/)
 
 # Rebol/MiniAudio
 
