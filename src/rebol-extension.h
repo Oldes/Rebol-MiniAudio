@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 26-Sep-2023/11:01:51
+// Date: 7-Apr-2025/8:29:35
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
@@ -22,7 +22,7 @@
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2023 Rebol Open Source Developers
+**  Copyright 2012-2024 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -268,7 +268,46 @@ typedef void(*CFUNC)(void *);
 **
 ***********************************************************************/
 
+#ifdef __has_builtin
+#  define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#  define HAS_BUILTIN(x) 0
+#endif
+
+#if defined(_MSC_VER)
+# define FORCE_INLINE    __forceinline
+# include <stdlib.h>
+# define ROTL32(x,y) _rotl(x,y)
+# define ROTL64(x,y) _rotl64(x,y)
+# define BIG_CONSTANT(x) (x)
+// Other compilers..
+#else   // defined(_MSC_VER)
+# define FORCE_INLINE inline __attribute__((always_inline))
+# if HAS_BUILTIN(__builtin_rotateleft32) && HAS_BUILTIN(__builtin_rotateleft64)
+#  define ROTL32(x,y) __builtin_rotateleft32(x,y)
+#  define ROTL64(x,y) __builtin_rotateleft64(x,y)
+# else
+    FORCE_INLINE uint32_t rotl32(uint32_t x, int8_t r)
+    {
+        return (x << r) | (x >> (32 - r));
+    }
+    FORCE_INLINE uint64_t rotl64(uint64_t x, int8_t r)
+    {
+        return (x << r) | (x >> (64 - r));
+    }
+#  define ROTL32(x,y) rotl32(x,y)
+#  define ROTL64(x,y) rotl64(x,y)
+# endif
+# define BIG_CONSTANT(x) (x##LLU)
+#endif // !defined(_MSC_VER)
+
+
 #define UNUSED(x) (void)x;
+
+// Check a condition e at compile time. If the condition is false, it will
+// result in a compilation error because it attempts to create an array 
+// with a negative size, which is not allowed in C.
+#define STATIC_ASSERT(e) do {(void)sizeof(char[1 - 2*!(e)]);} while(0)
 
 #define FLAGIT(f)           (1<<(f))
 #define GET_FLAG(v,f)       (((v) & (1<<(f))) != 0)
@@ -289,6 +328,7 @@ typedef void(*CFUNC)(void *);
 
 // Memory related functions:
 #define MAKE_MEM(n)     malloc(n)
+#define MAKE_CLEAR_MEM(n)     calloc(n, 1)
 #define MAKE_NEW(s)     MAKE_MEM(sizeof(s))
 #define FREE_MEM(m)     free(m)
 #define CLEAR(m, s)     memset((void*)(m), 0, s);
@@ -432,14 +472,40 @@ typedef void(*CFUNC)(void *);
     (p)[7] = (u8)((v) >> 56) & 0xff;  \
   } while (0)
 
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+#if !defined(GCC_VERSION_AT_LEAST)
+# ifdef __GNUC__
+#  define GCC_VERSION_AT_LEAST(m, n) \
+                (__GNUC__ > (m) || (__GNUC__ == (m) && __GNUC_MINOR__ >= (n)))
+# else
+#  define GCC_VERSION_AT_LEAST(m, n) 0
+# endif
+#endif
 
 //! Function attribute used by functions that never return (that terminate the process).
-#if defined(__GNUC__)
-#define REB_NORETURN __attribute__((__noreturn__))
-#elif defined(_MSC_VER)
-#define REB_NORETURN __declspec(noreturn)
-#else
-#define REB_NORETURN
+#if !defined(REB_NORETURN)
+# if defined(__clang__) || GCC_VERSION_AT_LEAST(2, 5)
+#  define REB_NORETURN __attribute__ ((noreturn))
+# elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#  define REB_NORETURN _Noreturn
+# elif defined(__TINYC__)
+#  define REB_NORETURN  /* _Noreturn unreliable [1] */
+# elif defined(_MSC_VER)
+#  define REB_NORETURN __declspec(noreturn)
+# else
+#  define REB_NORETURN
+# endif
+#endif
+#if !defined(DEAD_END)
+# if __has_builtin(__builtin_unreachable) || GCC_VERSION_AT_LEAST(4, 5)
+#  define DEAD_END __builtin_unreachable()
+# elif defined(_MSC_VER)
+#  define DEAD_END __assume(0)
+# else
+#  define DEAD_END abort()
+# endif
 #endif
 
 /* These macros are easier-to-spot variants of the parentheses cast.
@@ -611,6 +677,10 @@ typedef struct rebol_dat {
 
 typedef int	cmp_t(const void *, const void *);
 void reb_qsort(void *a, size_t n, size_t es, cmp_t *cmp);
+#define SORT_FLAG_REVERSE 1
+#define SORT_FLAG_WIDE    2
+#define SORT_FLAG_CASE    3
+
 
 // Encoding_opts was originally in sys-core.h, but I moved it here so it can
 // be used also while makking external extensions. (oldes)
@@ -650,8 +720,8 @@ enum encoding_opts {
 ************************************************************************
 **
 **  Title: Extension Types (Isolators)
-**  Build: 3.14.1
-**  Date:  26-Sep-2023
+**  Build: 3.18.6
+**  Date:  7-Apr-2025
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -709,7 +779,7 @@ enum REBOL_Ext_Types
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2023 Rebol Open Source Contributors
+**  Copyright 2012-2024 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -958,7 +1028,7 @@ typedef struct Reb_Time {
 #define VAL_TIME(v)	((v)->data.time.time)
 #define TIME_SEC(n)	((REBI64)(n) * 1000000000L)
 
-#define MAX_SECONDS	(((i64)1<<31)-1)
+#define MAX_SECONDS	((REBI64)9223372036L) //((i64)((2 ** 63) / (10 ** 9)))
 #define MAX_HOUR	(MAX_SECONDS / 3600)
 #define MAX_TIME	((REBI64)MAX_HOUR * HR_SEC)
 
@@ -977,6 +1047,7 @@ typedef struct Reb_Time {
 #define DEC_TO_SECS(n) (i64)(((n) + 5.0e-10) * SEC_SEC)
 
 #define SECS_IN_DAY 86400
+#define MICROSECONDS_IN_DAY 86400000000
 #define TIME_IN_DAY (SEC_TIME((i64)SECS_IN_DAY))
 
 #define NO_TIME		MIN_I64
@@ -1349,6 +1420,13 @@ enum {
 #define	CHECK_MARK(s,d) if (!IS_MARK_SERIES(s)) Mark_Series(s, d);
 #endif
 
+// Using the mark queue only if we are deep enough
+#define	QUEUE_CHECK_MARK(s,d) \
+		if (!IS_MARK_SERIES(s)) {\
+			if (depth < 64) Mark_Series(s, d); \
+			else Queue_Mark_Series(s);\
+		}
+
 //#define LABEL_SERIES(s,l) s->label = (l)
 #define IS_BLOCK_SERIES(s) (SERIES_WIDE(s) == sizeof(REBVAL))
 
@@ -1708,6 +1786,7 @@ typedef struct Reb_Series_Ref
 #define BIN_SKIP(s, n)	(((REBYTE *)((s)->data))+(n))
 #define	BIN_LEN(s)		(SERIES_TAIL(s))
 #define VAL_BIN_AT(v)   ((REBYTE*)(BIN_DATA(VAL_SERIES(v))+VAL_INDEX(v)))
+#define VAL_BIN_LEN(v)  ((SERIES_TAIL(VAL_SERIES(v)) - VAL_INDEX(v)))
 
 // Arg is a unicode series:
 #define UNI_HEAD(s)		((REBUNI *)((s)->data))
@@ -2432,12 +2511,14 @@ typedef struct Reb_All {
 #define ANY_SERIES(v)		(VAL_TYPE(v) >= REB_BINARY && VAL_TYPE(v) <= REB_LIT_PATH)
 #define ANY_STR(v)			(VAL_TYPE(v) >= REB_STRING && VAL_TYPE(v) <= REB_TAG)
 #define ANY_BINSTR(v)		(VAL_TYPE(v) >= REB_BINARY && VAL_TYPE(v) <= REB_TAG)
-#define ANY_BLOCK(v)		(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_LIT_PATH)
+#define ANY_BLOCK(v)		(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_HASH)
 #define	ANY_WORD(v)			(VAL_TYPE(v) >= REB_WORD   && VAL_TYPE(v) <= REB_ISSUE)
 #define	ANY_PATH(v)			(VAL_TYPE(v) >= REB_PATH   && VAL_TYPE(v) <= REB_LIT_PATH)
 #define ANY_FUNC(v)			(VAL_TYPE(v) >= REB_NATIVE && VAL_TYPE(v) <= REB_FUNCTION)
 #define ANY_EVAL_BLOCK(v)	(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_PAREN)
 #define ANY_OBJECT(v)		(VAL_TYPE(v) >= REB_OBJECT && VAL_TYPE(v) <= REB_PORT)
+#define ANY_NUMBER(v)	    (VAL_TYPE(v) >= REB_INTEGER && VAL_TYPE(v) <= REB_MONEY)
+#define ANY_SCALAR(v)	    (VAL_TYPE(v) >= REB_UNSET  && VAL_TYPE(v) <= REB_DATE)
 
 #define ANY_BLOCK_TYPE(t)   (t >= REB_BLOCK   && t <= REB_LIT_PATH)
 #define ANY_STR_TYPE(t)     (t >= REB_STRING  && t <= REB_TAG)
@@ -2623,6 +2704,7 @@ enum {
 	RXC_ASYNC,		// async callback
 	RXC_QUEUED,		// pending in event queue
 	RXC_DONE,		// call completed, structs can be freed
+	RXC_ALLOC,		// callback was allocated and must be freed on done
 };
 
 
@@ -2735,7 +2817,7 @@ void Parse_Args(int argc, REBCHR **argv, REBARGS *rargs);
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2013-2023 Rebol Open Source Developers
+**  Copyright 2013-2025 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -2850,7 +2932,8 @@ enum {
 
 enum {
 	RDM_NULL,		// Null device
-	RDM_READ_LINE,
+	RDM_READ_LINE,	// Read line mode
+	RDM_CGI
 };
 
 // Serial Parity
@@ -2896,6 +2979,7 @@ struct rebol_device {
 #define DEFINE_DEV(w,t,v,c,m,s) REBDEV w = {t, v, 0, c, m, 0, 0, s}
 
 // Request structure:		// Allowed to be extended by some devices
+// NOTE: when size of this struct is modified, reflect it in the make-reb-lib.reb file! (CHECK_STRUCT_ALIGN)
 struct rebol_devreq {
 	u32 clen;				// size of extended structure
 
@@ -2932,7 +3016,9 @@ struct rebol_devreq {
 			REBCHR *path;			// file string (in OS local format)
 			i64  size;				// file size
 			i64  index;				// file index position
-			I64  time;				// file modification time (struct)
+			I64  modified_time;     // file modification time (struct)
+			I64  accessed_time;     // file access time (struct)
+			I64  created_time;      // file creartion time (struct)
 		} file;
 		struct {
 			u32  local_ip;			// local address used
@@ -2946,6 +3032,7 @@ struct rebol_devreq {
 			u32  buffer_cols;
 			u32  window_rows;
 			u32  window_cols;
+			i32  length;            // number of bytes already available to read (from stdio) 
 		} console;
 		struct {
 			u32 device_in;  // requested device ID (1-based; 0 = none)
@@ -2991,6 +3078,7 @@ struct rebol_devreq {
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2024 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -3041,6 +3129,7 @@ enum {
 	RFE_BAD_READ,		// Read failed (general)
 	RFE_BAD_WRITE,		// Write failed (general)
 	RFE_DISK_FULL,		// No space on target volume
+	RFE_RESIZE_SERIES,  // Used on Posix to report, that the target series must be resized
 };
 
 #define MAX_FILE_NAME 1022
@@ -3112,8 +3201,8 @@ enum {
 ************************************************************************
 **
 **  Title: Event Types
-**  Build: 3.14.1
-**  Date:  26-Sep-2023
+**  Build: 3.18.6
+**  Date:  7-Apr-2025
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3221,8 +3310,8 @@ enum event_keys {
 ************************************************************************
 **
 **  Title: REBOL Host and Extension API
-**  Build: 3.14.1
-**  Date:  26-Sep-2023
+**  Build: 3.18.6
+**  Date:  7-Apr-2025
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)
@@ -3233,16 +3322,16 @@ enum event_keys {
 // These constants are created by the release system and can be used to check
 // for compatiblity with the reb-lib DLL (using RL_Version.)
 #define RL_VER 3
-#define RL_REV 14
-#define RL_UPD 1
+#define RL_REV 18
+#define RL_UPD 6
 
 // Compatiblity with the lib requires that structs are aligned using the same
 // method. This is concrete, not abstract. The macro below uses struct
 // sizes to inform the developer that something is wrong.
 #if defined(__LP64__) || defined(__LLP64__)
-#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 100 && sizeof(REBEVT) == 16)
+#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 116 && sizeof(REBEVT) == 16)
 #else
-#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 80 && sizeof(REBEVT) == 12)
+#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 96 && sizeof(REBEVT) == 12)
 #endif
 
 // Function entry points for reb-lib (used for MACROS below):
@@ -3258,7 +3347,7 @@ typedef struct rebol_ext_api {
 	int (*do_binary)(REBYTE *bin, REBINT length, REBCNT flags, REBCNT key, RXIARG *result);
 	int (*do_block)(REBSER *blk, REBCNT flags, RXIARG *result);
 	void (*do_commands)(REBSER *blk, REBCNT flags, REBCEC *context);
-	void (*print)(REBYTE *fmt, ...);
+	void (*print)(const REBYTE *fmt, ...);
 	void (*print_tos)(REBCNT flags, REBYTE *marker);
 	int (*event)(REBEVT *evt);
 	int (*update_event)(REBEVT *evt);
@@ -3287,11 +3376,11 @@ typedef struct rebol_ext_api {
 	REBCNT (*encode_utf8)(REBYTE *dst, REBINT max, void *src, REBCNT *len, REBFLG uni, REBFLG opts);
 	REBSER* (*encode_utf8_string)(void *src, REBCNT len, REBFLG uni, REBFLG opts);
 	REBSER* (*decode_utf_string)(REBYTE *src, REBCNT len, REBINT utf, REBFLG ccr, REBFLG uni);
-	REBCNT (*register_handle)(REBYTE *name, REBCNT size, void* free_func);
+	REBCNT (*register_handle)(const REBYTE *name, REBCNT size, void* free_func);
 	REBHOB* (*make_handle_context)(REBCNT sym);
 	void (*free_handle_context)(REBHOB *hob);
 	REBCNT (*decode_utf8_char)(const REBYTE *str, REBCNT *len);
-	REBCNT (*register_handle_spec)(REBYTE *name, REBHSP *spec);
+	REBCNT (*register_handle_spec)(const REBYTE *name, REBHSP *spec);
 	REBSER* (*to_local_path)(RXIARG *file, REBFLG full, REBFLG utf8);
 	REBSER* (*to_rebol_path)(void *src, REBCNT len, REBINT uni);
 } RL_LIB;
@@ -3519,7 +3608,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_PRINT(a,...)             RL->print(a,__VA_ARGS__)
 /*
-**	void RL_Print(REBYTE *fmt, ...)
+**	void RL_Print(const REBYTE *fmt, ...)
 **
 **	Low level print of formatted data to the console.
 **
@@ -4021,7 +4110,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_REGISTER_HANDLE(a,b,c)   RL->register_handle(a,b,c)
 /*
-**	REBCNT RL_Register_Handle(REBYTE *name, REBCNT size, void* free_func)
+**	REBCNT RL_Register_Handle(const REBYTE *name, REBCNT size, void* free_func)
 **
 **	Stores handle's specification (required data size and optional free callback.
 **
@@ -4076,7 +4165,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_REGISTER_HANDLE_SPEC(a,b) RL->register_handle_spec(a,b)
 /*
-**	REBCNT RL_Register_Handle_Spec(REBYTE *name, REBHSP *spec)
+**	REBCNT RL_Register_Handle_Spec(const REBYTE *name, REBHSP *spec)
 **
 **	Stores handle's specification (required data size and optional callbacks).
 **  It's an extended version of old RL_Register_Handle function.
@@ -4142,7 +4231,7 @@ RL_API int RL_Do_String(REBYTE *text, REBCNT flags, RXIARG *result);
 RL_API int RL_Do_Binary(REBYTE *bin, REBINT length, REBCNT flags, REBCNT key, RXIARG *result);
 RL_API int RL_Do_Block(REBSER *blk, REBCNT flags, RXIARG *result);
 RL_API void RL_Do_Commands(REBSER *blk, REBCNT flags, REBCEC *context);
-RL_API void RL_Print(REBYTE *fmt, ...);
+RL_API void RL_Print(const REBYTE *fmt, ...);
 RL_API void RL_Print_TOS(REBCNT flags, REBYTE *marker);
 RL_API int RL_Event(REBEVT *evt);
 RL_API int RL_Update_Event(REBEVT *evt);
@@ -4171,11 +4260,11 @@ RL_API int RL_Callback(RXICBI *cbi);
 RL_API REBCNT RL_Encode_UTF8(REBYTE *dst, REBINT max, void *src, REBCNT *len, REBFLG uni, REBFLG opts);
 RL_API REBSER* RL_Encode_UTF8_String(void *src, REBCNT len, REBFLG uni, REBFLG opts);
 RL_API REBSER* RL_Decode_UTF_String(REBYTE *src, REBCNT len, REBINT utf, REBFLG ccr, REBFLG uni);
-RL_API REBCNT RL_Register_Handle(REBYTE *name, REBCNT size, void* free_func);
+RL_API REBCNT RL_Register_Handle(const REBYTE *name, REBCNT size, void* free_func);
 RL_API REBHOB* RL_Make_Handle_Context(REBCNT sym);
 RL_API void RL_Free_Handle_Context(REBHOB *hob);
 RL_API REBCNT RL_Decode_UTF8_Char(const REBYTE *str, REBCNT *len);
-RL_API REBCNT RL_Register_Handle_Spec(REBYTE *name, REBHSP *spec);
+RL_API REBCNT RL_Register_Handle_Spec(const REBYTE *name, REBHSP *spec);
 RL_API REBSER* RL_To_Local_Path(RXIARG *file, REBFLG full, REBFLG utf8);
 RL_API REBSER* RL_To_Rebol_Path(void *src, REBCNT len, REBINT uni);
 

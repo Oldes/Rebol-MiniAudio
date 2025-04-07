@@ -17,5 +17,15 @@ audio: import 'miniaudio
 print as-yellow "Content of the module..."
 ? audio
 
+;; for the CI test, try to use first playback device available
+;; paused for the purpose of the test!
+try/with [
+    device: audio/init-playback/pause 1
+][
+    print "There may be no device available in the CI runner."
+    print system/state/last-error
+    quit
+]
+
 ;; run a real test file...
 do %test.r3

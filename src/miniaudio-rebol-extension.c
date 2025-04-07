@@ -77,7 +77,7 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 	REBHSP spec;
 	spec.mold = Common_mold;
 
-	spec.size      = sizeof(my_engine); // It is MY_, not MA_! 
+	spec.size      = sizeof(MAContext);
 	spec.flags     = HANDLE_REQUIRES_HOB_ON_FREE;
 	spec.free      = MAEngine_free;
 	spec.get_path  = MAEngine_get_path;

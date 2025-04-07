@@ -2,25 +2,35 @@ Rebol [
 	title: "Rebol/MiniAudio extension test"
 ]
 
-audio: import miniaudio
 
-;; list all available devices:
-devices: transcode audio/get-devices
-?? devices
+unless audio [
+	audio: import miniaudio
 
-if any [
-	empty? devices/playback
-	devices/playback/1 = "Null Audio Device"
-][
-	;; GitHub Actions on Windows and macOS does not have any audio device.
-	print as-purple "No audio device found."
-	quit
+	init-device: function[/pause][
+		;; list all available devices:
+		devices: transcode audio/get-devices
+		?? devices
+		id: 0
+		foreach device devices/playback [
+			++ id
+			if find [
+				;; ignore these playback devices...
+				"Null Audio Device"
+				"Speakers (Steam Streaming Speakers)"
+			] device [continue]
+
+			return audio/init-playback/:pause id
+		]
+		;; GitHub Actions on Windows and macOS does not have any audio device.
+		print as-purple "No audio device found."
+		quit
+	]
+
+	;; init a playback device...
+	;; keep the reference to the device handle, else it will be released by GC!
+	;; (for test purpose, not starting the playback automatically)
+	device: init-device/pause
 ]
-
-;; init a playback device (first available)...
-;; keep the reference to the device handle, else it will be released by GC!
-;; (for test purpose, not starting the playback automatically)
-probe device: audio/init-playback/pause 1
 
 ;; load a sound for later use...
 probe sound: audio/load probe %assets/žbluňk_02.wav

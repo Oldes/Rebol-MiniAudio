@@ -262,11 +262,11 @@ type-words: [
 
 
 ;-------------------------------------- ----------------------------------------
-reb-code: {REBOL [Title: {Rebol MiniAudio Extension} Type: module Version: 0.11.21.0 needs: 3.14.1]}
 reb-code: ajoin [
 	{REBOL [Title: "Rebol MiniAudio Extension"}
 	{ Name: miniaudio Type: module}
-	{ Version: 0.11.21.0}
+	{ Version: 0.11.22}
+	{ Needs: 3.14.1}
 	{ Author: Oldes}
 	{ Date: } now/utc
 	{ License: MIT}
@@ -357,11 +357,11 @@ header: {$logo
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)
 
-typedef struct my_engine {
-	ma_engine engine;
-	ma_device device;
+typedef struct MAContext {
+	ma_engine* engine;
+	ma_device* device;
 	RXICBI    callback;
-} my_engine;
+} MAContext;
 
 extern REBCNT Handle_MAEngine;
 extern REBCNT Handle_MASound;

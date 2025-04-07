@@ -20,11 +20,11 @@
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)
 
-typedef struct my_engine {
-	ma_engine engine;
-	ma_device device;
+typedef struct MAContext {
+	ma_engine* engine;
+	ma_device* device;
 	RXICBI    callback;
-} my_engine;
+} MAContext;
 
 extern REBCNT Handle_MAEngine;
 extern REBCNT Handle_MASound;
@@ -139,7 +139,7 @@ enum ma_type_words {W_TYPE_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.21.0 Author: Oldes Date: 4-Jun-2024/9:10:20 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
+	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.22 Needs: 3.14.1 Author: Oldes Date: 7-Apr-2025/12:02:20 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
 	"init-words: command [args [block!] type [block!]]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used} /period \"Hint for making up the device's entire buffer\" size [integer!] \"The desired size of a period in milliseconds\" /callback {On-data callback (two args.. buffer frames, and engine total frames)} context [object!] \"The function's context\" word [word!] \"The function's name\"]\n"\

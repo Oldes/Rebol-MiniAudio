@@ -43,7 +43,7 @@
 
 #define APPEND_STRING(str, ...) \
 	len = snprintf(NULL,0,__VA_ARGS__);\
-	if (len > SERIES_REST(str)-SERIES_LEN(str)) {\
+	if (len > (int)(SERIES_REST(str)-SERIES_LEN(str))) {\
 		RL_EXPAND_SERIES(str, SERIES_TAIL(str), len);\
 		SERIES_TAIL(str) -= len;\
 	}\
@@ -58,11 +58,10 @@
 #define ASSERT_ENGINE()    if(pEngine == NULL) RETURN_ERROR("No playback device initialized!");
 
 
-my_engine* pEngine = NULL;
+MAContext* pEngine = NULL;
+REBHOB*    pEngineHob = NULL;
 ma_context gContext;
 ma_resource_manager gResourceManager;
-
-REBHOB* pEngineHob = NULL;
 
 
 static ma_uint64 abs_sound_frames(RXIARG *arg, ma_sound *sound) {
@@ -85,12 +84,12 @@ static ma_result sound_init_from_arg(RXIARG *file, REBSER **out_ser, ma_uint32 f
 
 #ifdef TO_WINDOWS
 	// On Windows the result is always a wide-character string
-	result = ma_sound_init_from_file_w(&pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
+	result = ma_sound_init_from_file_w(pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
 #else
 	// On Posix convert to UTF-8 first
 	REBSER *utf = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), 1, 0);
 	if (!utf) return MA_INVALID_FILE;
-    result = ma_sound_init_from_file(&pEngine->engine, (const char*)SERIES_DATA(utf), 0, pGroup, NULL, pSound);
+    result = ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(utf), 0, pGroup, NULL, pSound);
 #endif
 	return result;
 }
@@ -103,15 +102,16 @@ static void onSoundEnd(void* hob, ma_sound* pSound) {
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
 	RXIARG args[4];
-	my_engine* myEngine;
+	MAContext* ctx;
 
 	(void)pInput;
 
-	myEngine = (my_engine*)pDevice->pUserData;
+	ctx = (MAContext*)pDevice->pUserData;
+	if (ctx == NULL || ctx->engine == NULL) return;
 
-	if (myEngine->callback.obj) {
+	if (ctx->callback.obj) {
 		CLEAR(&args[0], sizeof(args));
-		myEngine->callback.args = args;
+		ctx->callback.args = args;
 
 		// Pass a requested frame count and total engine frames count
 		RXI_COUNT(args) = 2;
@@ -119,12 +119,12 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 		args[1].uint64 = frameCount;
 
 		RXI_TYPE(args, 2) = RXT_INTEGER;
-		args[2].uint64 = ma_engine_get_time_in_pcm_frames(&myEngine->engine);
+		args[2].uint64 = ma_engine_get_time_in_pcm_frames(ctx->engine);
 
-		RL_CALLBACK(&myEngine->callback);
+		RL_CALLBACK(&ctx->callback);
 	}
 
-	ma_engine_read_pcm_frames(&myEngine->engine, pOutput, frameCount, NULL);
+	ma_engine_read_pcm_frames(ctx->engine, pOutput, frameCount, NULL);
 }
 
 
@@ -141,12 +141,15 @@ int MAEngine_free(void* hndl) {
 	RXIARG  arg;
 	REBSER *blk;
 	REBHOB *hob;
-	my_engine *engine;
+	MAContext *context;
 
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
+	context = (MAContext*)hob->data;
+	if (!context || !context->engine || !context->device) return 0;
+	ma_device_stop(context->device);
 
-	printf("release engine: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
+	debug_print("release engine: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
 	UNMARK_HOB(hob);
 	blk = hob->series;
 	if (blk) {
@@ -159,13 +162,18 @@ int MAEngine_free(void* hndl) {
 		RESET_SERIES(blk);
 		hob->series = NULL;
 	}
-	engine = (my_engine*)hob->data;
-	ma_engine_uninit(&engine->engine);
-	ma_device_uninit(&engine->device);
+	
+	ma_device_uninit(context->device);
+	ma_engine_uninit(context->engine);
+	free(context->engine);
+	free(context->device);
+	context->engine = NULL;
+	context->device = NULL;
 	return 0;
 }
 int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
-	ma_engine* engine = (ma_engine*)hob->data;
+	MAContext* context = (MAContext*)hob->data;
+	ma_engine* engine = context->engine;
 	word = RL_FIND_WORD(arg_words, word);
 	switch (word) {
 	case W_ARG_RESOURCES:
@@ -203,14 +211,15 @@ int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	return PE_USE;
 }
 int MAEngine_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
-	ma_engine* engine = (ma_engine*)hob->data;
+	MAContext* context = (MAContext*)hob->data;
+	ma_engine* engine = context->engine;
 	word = RL_FIND_WORD(arg_words, word);
 	switch (word) {
 	case W_ARG_VOLUME:
 		switch (*type) {
 		case RXT_DECIMAL:
 		case RXT_PERCENT:
-			ma_engine_set_volume(engine, arg->dec64);
+			ma_engine_set_volume(engine, (float)arg->dec64);
 			break;
 		case RXT_INTEGER:
 			ma_engine_set_volume(engine, (float)arg->int64);
@@ -244,13 +253,13 @@ int MASound_free(void* hndl) {
 	REBHOB *hob;
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
-	printf("release sound: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
+	debug_print("release sound: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
 
 	ma_sound *sound = (ma_sound*)hob->data;
 
 	// Don't release it, if not referenced but still playing...
 	if(!IS_MARK_HOB(hob) && ma_sound_is_playing(sound)) {
-		puts("preventing sound release?");
+		debug_print("preventing sound release?\n");
 		MARK_HOB(hob);
 		return 0;
 	}
@@ -380,7 +389,7 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		switch (*type) {
 		case RXT_DECIMAL:
 		case RXT_PERCENT:
-			ma_sound_set_volume(sound, arg->dec64);
+			ma_sound_set_volume(sound, (float)arg->dec64);
 			break;
 		case RXT_INTEGER:
 			ma_sound_set_volume(sound, (float)arg->int64);
@@ -401,11 +410,11 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		break;
 	case W_ARG_PAN:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
-		ma_sound_set_pan(sound, arg->dec64);
+		ma_sound_set_pan(sound, (float)arg->dec64);
 		break;
 	case W_ARG_PITCH:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
-		ma_sound_set_pitch(sound, arg->dec64);
+		ma_sound_set_pitch(sound, (float)arg->dec64);
 		break;
 	case W_ARG_SPATIALIZE:
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
@@ -474,13 +483,13 @@ int MAGroup_free(void* hndl) {
 	REBHOB *hob;
 	if (!hndl) return 0;
 	hob = (REBHOB *)hndl;
-	printf("release sound group: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
+	debug_print("release sound group: %p is referenced: %i\n", hob->data, IS_MARK_HOB(hob) != 0);
 
 	ma_sound_group *group = (ma_sound_group*)hob->data;
 
 	// Don't release it, if not referenced but still playing...
 	if(!IS_MARK_HOB(hob) && ma_sound_group_is_playing(group)) {
-		puts("preventing group release?");
+		debug_print("preventing group release?\n");
 		MARK_HOB(hob);
 		return 0;
 	}
@@ -496,8 +505,8 @@ int MAGroup_free(void* hndl) {
 int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound_group* group = (ma_sound_group*)hob->data;
 	word = RL_FIND_WORD(arg_words, word);
-	ma_uint64 frames;
-	ma_uint32 sampleRate;
+	//ma_uint64 frames;
+	//ma_uint32 sampleRate;
 	ma_vec3f pos;
 
 	switch (word) {
@@ -584,7 +593,7 @@ int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		switch (*type) {
 		case RXT_DECIMAL:
 		case RXT_PERCENT:
-			ma_sound_group_set_volume(group, arg->dec64);
+			ma_sound_group_set_volume(group, (float)arg->dec64);
 			break;
 		case RXT_INTEGER:
 			ma_sound_group_set_volume(group, (float)arg->int64);
@@ -600,11 +609,11 @@ int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		break;
 	case W_ARG_PAN:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
-		ma_sound_group_set_pan(group, arg->dec64);
+		ma_sound_group_set_pan(group, (float)arg->dec64);
 		break;
 	case W_ARG_PITCH:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
-		ma_sound_group_set_pitch(group, arg->dec64);
+		ma_sound_group_set_pitch(group, (float)arg->dec64);
 		break;
 	case W_ARG_SPATIALIZE:
 		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
@@ -667,7 +676,7 @@ int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 
 int MANoise_free(void* hndl) {
 	if (hndl != NULL) {
-		printf("release noise: %p\n", hndl);
+		debug_print("release noise: %p\n", hndl);
 		ma_noise_uninit((ma_noise*)hndl, NULL);
 	}
 	return 0;
@@ -710,7 +719,7 @@ int MANoise_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 
 int MAWaveform_free(void* hndl) {
 	if (hndl != NULL) {
-		printf("release waveform: %p\n", hndl);
+		debug_print("release waveform: %p\n", hndl);
 		ma_waveform_uninit((ma_waveform*)hndl);
 	}
 	return 0;
@@ -763,7 +772,7 @@ int MAWaveform_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 
 int MADelay_free(void* hndl) {
 	if (hndl != NULL) {
-		printf("release delay: %p\n", hndl);
+		debug_print("release delay: %p\n", hndl);
 		ma_delay_node_uninit((ma_delay_node*)hndl, NULL);
 	}
 	return 0;
@@ -853,7 +862,7 @@ COMMAND cmd_test(RXIFRM *frm, void *ctx) {
 	if (MA_SUCCESS != ma_noise_init(&config, NULL, noise)) return RXR_FALSE;
 	printf("type: %i\n", noise->config.type); // here it is OK (2)
 
-	if (MA_SUCCESS != ma_sound_init_from_data_source(&pEngine->engine, noise, 0, NULL, sound)) return RXR_FALSE;
+	if (MA_SUCCESS != ma_sound_init_from_data_source(pEngine->engine, noise, 0, NULL, sound)) return RXR_FALSE;
 	printf("type: %i\n", noise->config.type); // here it is zero!
 	ma_sound_start(sound);
 	printf("type: %i\n", noise->config.type); // here it is zero! 
@@ -867,11 +876,6 @@ COMMAND cmd_get_devices(RXIFRM *frm, void *ctx) {
 	ma_device_info* pCaptureDeviceInfos;
 	ma_uint32 captureDeviceCount;
 	ma_uint32 iDevice, iData;
-
-	REBSER *result;
-	REBSER *blk;
-	RXIARG arg;
-	
 
 	if (MA_SUCCESS != ma_context_get_devices(&gContext, &pPlaybackDeviceInfos, &playbackDeviceCount, &pCaptureDeviceInfos, &captureDeviceCount)) {
 		RETURN_ERROR("Failed to retrieve device information.");
@@ -917,58 +921,60 @@ COMMAND cmd_init_playback(RXIFRM *frm, void *ctx) {
 	ma_uint32 iChosenDevice;
 	ma_device_config deviceConfig;
 	ma_engine_config engineConfig;
-	my_engine *engine;
+	MAContext *context;
 
 	result = ma_context_get_devices(&gContext, &pPlaybackDeviceInfos, &playbackDeviceCount, NULL, NULL);
 	if (result != MA_SUCCESS) {
 		RETURN_ERROR("Failed to enumerate playback devices.");
 	}
 
-	iChosenDevice = RXA_INT64(frm, 1) - 1;
+	iChosenDevice = (ma_uint32)(RXA_INT64(frm, 1) - 1);
 	if (iChosenDevice < 0 || iChosenDevice >= playbackDeviceCount) {
 		RETURN_ERROR("Invalid device index value.");
 	}
 
 	hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAEngine);
 	if (hob == NULL) return RXR_NONE;
-	engine = (my_engine*)hob->data;
+	context = (MAContext*)hob->data;
+	context->engine = malloc(sizeof(ma_engine));
+	context->device = malloc(sizeof(ma_device));
 
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
-	deviceConfig.periodSizeInMilliseconds = RXA_UINT64(frm, 6);;
+	deviceConfig.periodSizeInMilliseconds = (ma_uint32)RXA_UINT64(frm, 6);;
 	deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[iChosenDevice].id;
 	deviceConfig.playback.format    = gResourceManager.config.decodedFormat;
-	deviceConfig.playback.channels  = RXA_INT64(frm, 4);
+	deviceConfig.playback.channels  = (ma_uint32)RXA_INT64(frm, 4);
 	deviceConfig.sampleRate         = gResourceManager.config.decodedSampleRate;
 	deviceConfig.dataCallback       = data_callback;
-	deviceConfig.pUserData          = engine;
+	deviceConfig.pUserData          = context;
 
-	result = ma_device_init(&gContext, &deviceConfig, &engine->device);
+	result = ma_device_init(&gContext, &deviceConfig, context->device);
 	if (result != MA_SUCCESS) {
 		debug_print("Failed to initialize device for %s.\n", pPlaybackDeviceInfos[iChosenDevice].name);
 		RETURN_ERROR("Failed to initialize device.");
 	}
 
 	engineConfig = ma_engine_config_init();
-	engineConfig.pDevice          = &engine->device;
+	engineConfig.pDevice          = context->device;
 	engineConfig.pResourceManager = &gResourceManager;
 	engineConfig.noAutoStart      = RXA_REF(frm, 2);
 
-	result = ma_engine_init(&engineConfig, &engine->engine);
+	result = ma_engine_init(&engineConfig, context->engine);
 	if (result != MA_SUCCESS) {
 		debug_print("Failed to initialize engine for %s.\n", pPlaybackDeviceInfos[iChosenDevice].name);
-		ma_device_uninit(&engine->device);
+		ma_device_uninit(context->device);
 		RETURN_ERROR("Failed to initialize engine.");
 	}
 
-	pEngine = engine;
+	pEngine = context;
 	pEngineHob = hob;
 	hob->series = RL_MAKE_BLOCK(10); // for keeping references to sound handles
 
 	if (RXA_REF(frm, 7)) {
 		// on-data callback
-		CLEAR(&engine->callback, sizeof(engine->callback));
-		engine->callback.obj  = RXA_OBJECT(frm, 8);
-		engine->callback.word = RXA_WORD(frm, 9);
+		CLEAR(&context->callback, sizeof(context->callback));
+		context->callback.obj  = RXA_OBJECT(frm, 8);
+		context->callback.word = RXA_WORD(frm, 9);
 	}
 
 	RETURN_HANDLE(hob);
@@ -1014,7 +1020,7 @@ COMMAND cmd_play(RXIFRM *frm, void *ctx) {
 		hob = RL_MAKE_HANDLE_CONTEXT(Handle_MASound);
 		if (hob == NULL) return RXR_NONE;
 		sound = (ma_sound*)hob->data;
-		if (MA_SUCCESS != ma_sound_init_from_data_source(&pEngine->engine, source, 0, group, sound))
+		if (MA_SUCCESS != ma_sound_init_from_data_source(pEngine->engine, source, 0, group, sound))
 			RETURN_ERROR("Failed to initialize the sound from a data source.");
 
 		// store the datasource in the sound, so it it markable from GC
@@ -1072,7 +1078,7 @@ COMMAND cmd_pause(RXIFRM *frm, void *ctx) {
 
 COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 	ma_sound  *sound;
-	my_engine *engine;
+	MAContext *context;
 	ma_uint64 sampleRate;
 	ma_uint64 frame = 0;
 	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
@@ -1098,7 +1104,7 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 		ma_sound_seek_to_pcm_frame(sound, frame);
 		// If the stop time is in the past, reset it to the future; otherwise, the sound will not play again.
 		// See: https://github.com/mackron/miniaudio/issues/714
-		if (ma_node_get_state_time((ma_node*)sound, ma_node_state_stopped) <= ma_engine_get_time_in_pcm_frames(&pEngine->engine))
+		if (ma_node_get_state_time((ma_node*)sound, ma_node_state_stopped) <= ma_engine_get_time_in_pcm_frames(pEngine->engine))
 			ma_sound_set_stop_time_in_pcm_frames(sound, ~(ma_uint64)0);
 
 		if (RXA_REF(frm, 7)) { // /at
@@ -1130,18 +1136,18 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 		return RXR_VALUE;
 	}
 	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAEngine) {
-		engine = (my_engine*)hob->handle;
+		context = (MAContext*)hob->handle;
 		if (RXA_REF(frm, 3)) {
 			if (RXA_INT64(frm, 4) < 0) RXA_INT64(frm, 4) = 0; // only positive values
 			if (RXA_TYPE(frm, 4) == RXT_INTEGER) {
 				frame = RXA_INT64(frm, 4);
 			} else {
-				sampleRate = ma_engine_get_sample_rate(&engine->engine);
+				sampleRate = ma_engine_get_sample_rate(context->engine);
 				frame = (RXA_TIME(frm, 4) * sampleRate) / 1000000000; // rate is per second
 			}
-			ma_engine_set_time_in_pcm_frames(&engine->engine, (ma_uint64)frame);
+			ma_engine_set_time_in_pcm_frames(context->engine, (ma_uint64)frame);
 		}
-		ma_device_start(&engine->device);
+		ma_device_start(context->device);
 		return RXR_VALUE;
 	}
 	return RXR_FALSE;
@@ -1149,8 +1155,7 @@ COMMAND cmd_start(RXIFRM *frm, void *ctx) {
 
 COMMAND cmd_stop(RXIFRM *frm, void *ctx) {
 	ma_sound  *sound;
-	my_engine *engine;
-	REBINT type;
+	MAContext *context;
 	REBI64 fade;
 	REBHOB  *hob = RXA_HANDLE_CONTEXT(frm, 1);
 	if (!IS_USED_HOB(hob)) return RXR_FALSE; // already released handle!
@@ -1169,8 +1174,8 @@ COMMAND cmd_stop(RXIFRM *frm, void *ctx) {
 		return RXR_VALUE;
 	}
 	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAEngine) {
-		engine = (my_engine*)hob->handle;
-		ma_device_stop(&engine->device);
+		context = (MAContext*)hob->handle;
+		ma_device_stop(context->device);
 		return RXR_VALUE;
 	}
 	return RXR_FALSE;
@@ -1191,8 +1196,8 @@ COMMAND cmd_fade(RXIFRM *frm, void *ctx) {
 		frames = (RXA_TIME(frm, 2) * sampleRate) / 1000000000;
 	}
 
-	volumeBeg = ARG_Double(3);
-	volumeEnd = ARG_Double(4);
+	volumeBeg = ARG_Float(3);
+	volumeEnd = ARG_Float(4);
 
 	if (frames < 0) frames = 1;
 	//if (volumeBeg == 0.0) ma_sound_set_volume(sound, 0.01);
@@ -1318,7 +1323,7 @@ COMMAND cmd_make_waveform_node(RXIFRM *frm, void *ctx) {
 	ma_waveform_config config = ma_waveform_config_init(
 		format,        //= format
 		1,             //= channels
-		ma_engine_get_sample_rate(&pEngine->engine),
+		ma_engine_get_sample_rate(pEngine->engine),
 		ARG_Int32(1),  //= type
 		ARG_Double(2), //= apmplitude
 		ARG_Double(3)  //= frequency
@@ -1348,8 +1353,8 @@ COMMAND cmd_make_delay_node(RXIFRM *frm, void *ctx) {
 	if (hob == NULL) return RXR_NONE;
 	delay = (ma_delay_node*)hob->data;
 
-	channels   = ma_engine_get_channels(&pEngine->engine);
-	sampleRate = ma_engine_get_sample_rate(&pEngine->engine);
+	channels   = ma_engine_get_channels(pEngine->engine);
+	sampleRate = ma_engine_get_sample_rate(pEngine->engine);
 
 	if (RXA_INT64(frm, 1) < 0) RXA_INT64(frm, 1) = 1;
 	else if (RXA_TYPE(frm, 1) == RXT_INTEGER) {
@@ -1360,19 +1365,19 @@ COMMAND cmd_make_delay_node(RXIFRM *frm, void *ctx) {
 		delayInFrames = (ma_uint32)((RXA_TIME(frm, 1) * sampleRate) / 1000000000);
 	}
 
-	decay = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 2)));
+	decay = (float)fmax(0.0, fmin(1.0, ARG_Double(2)));
 
 	ma_delay_node_config config = ma_delay_node_config_init(channels, sampleRate, delayInFrames, decay);
 
-	if (RXA_REF(frm, 3)) config.delay.dry = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 4)));
-	if (RXA_REF(frm, 5)) config.delay.wet = fmax(0.0, fmin(1.0, (float)RXA_DEC64(frm, 6)));
+	if (RXA_REF(frm, 3)) config.delay.dry = (float)fmax(0.0, fmin(1.0, ARG_Double(4)));
+	if (RXA_REF(frm, 5)) config.delay.wet = (float)fmax(0.0, fmin(1.0, ARG_Double(6)));
 
 
-	if (MA_SUCCESS != ma_delay_node_init(ma_engine_get_node_graph(&pEngine->engine), &config, NULL, delay))
+	if (MA_SUCCESS != ma_delay_node_init(ma_engine_get_node_graph(pEngine->engine), &config, NULL, delay))
 		RETURN_ERROR("Failed to initialize the delay node.");
 
 	/* Connect the output of the delay node to the input of the endpoint. */
-	ma_node_attach_output_bus(delay, 0, ma_engine_get_endpoint(&pEngine->engine), 0);
+	ma_node_attach_output_bus(delay, 0, ma_engine_get_endpoint(pEngine->engine), 0);
 
 	hob->series = NULL;
 	RXA_HANDLE(frm, 1)       = hob;
@@ -1396,7 +1401,7 @@ COMMAND cmd_make_group_node(RXIFRM *frm, void *ctx) {
 	if (hob == NULL) return RXR_NONE;
 	group = (ma_sound_group*)hob->data;
 
-	if (MA_SUCCESS != ma_sound_group_init(&pEngine->engine, 0, NULL, group))
+	if (MA_SUCCESS != ma_sound_group_init(pEngine->engine, 0, NULL, group))
 		RETURN_ERROR("Failed to initialize the sound group.");
 
 	hob->series = RL_MAKE_BLOCK(1);
@@ -1420,7 +1425,7 @@ COMMAND cmd_volume(RXIFRM *frm, void *ctx) {
 	float volume;
 	
 	sound = ARG_MASound(1);
-	volume = ARG_Double(2);
+	volume = ARG_Float(2);
 
 	if (sound == NULL) return RXR_FALSE;
 	ma_sound_set_volume(sound, volume);
@@ -1443,7 +1448,7 @@ COMMAND cmd_pan(RXIFRM *frm, void *ctx) {
 	float pan;
 	
 	sound = ARG_MASound(1);
-	pan   = ARG_Double(2);
+	pan   = ARG_Float(2);
 
 	if (sound == NULL) return RXR_FALSE;
 	ma_sound_set_pan(sound, pan);
@@ -1466,7 +1471,7 @@ COMMAND cmd_pitch(RXIFRM *frm, void *ctx) {
 	float pitch;
 	
 	sound = ARG_MASound(1);
-	pitch   = ARG_Double(2);
+	pitch   = ARG_Float(2);
 
 	if (sound == NULL) return RXR_FALSE;
 	ma_sound_set_pitch(sound, pitch);
