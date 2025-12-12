@@ -142,7 +142,7 @@ enum ma_type_words {W_TYPE_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.23 Needs: 3.14.1 Author: Oldes Date: 12-Dec-2025/12:39:20 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
+	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.23 Needs: 3.14.1 Author: Oldes Date: 12-Dec-2025/13:03:46 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
 	"init-words: command [args [block!] type [block!]]\n"\
 	"version: command [\"Native MiniAudio version\"]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
