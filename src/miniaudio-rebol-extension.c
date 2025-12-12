@@ -24,6 +24,7 @@ REBCNT Handle_MAGroup;
 
 u32* arg_words;
 u32* type_words;
+u32  rebol_version = 0;
 //============================================================================//
 
 static const char* init_block = MINIAUDIO_EXT_INIT_CODE;
@@ -61,6 +62,8 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 	debug_print(
 		"RXinit miniaudio-extension; Rebol v%i.%i.%i\n",
 		ver[1], ver[2], ver[3]);
+	// Keep Rebol version as an integer (used to detect, if UTF8 conversion is needed)
+	rebol_version = (ver[1] * 10000) + (ver[2] * 100) + ver[3];
 
 	if (MIN_REBOL_VERSION > VERSION(ver[1], ver[2], ver[3])) {
 		debug_print(

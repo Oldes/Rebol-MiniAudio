@@ -86,10 +86,12 @@ static ma_result sound_init_from_arg(RXIARG *file, REBSER **out_ser, ma_uint32 f
 	// On Windows the result is always a wide-character string
 	result = ma_sound_init_from_file_w(pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
 #else
-	// On Posix convert to UTF-8 first
-	REBSER *utf = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), 1, 0);
-	if (!utf) return MA_INVALID_FILE;
-    result = ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(utf), 0, pGroup, NULL, pSound);
+	if (rebol_version < 32000) {
+		// On Posix convert to UTF-8 first (on Rebol versions older than 3.20.0)
+		ser = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), 1, 0);
+		if (!ser) return MA_INVALID_FILE;
+	}
+	result = ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
 #endif
 	return result;
 }

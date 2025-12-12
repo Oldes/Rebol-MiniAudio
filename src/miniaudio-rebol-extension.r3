@@ -374,6 +374,7 @@ extern REBCNT Handle_MAGroup;
 
 extern u32* arg_words;
 extern u32* type_words;
+extern u32 rebol_version;
 
 enum ext_commands {$enu-commands
 };
