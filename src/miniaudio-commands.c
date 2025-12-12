@@ -851,6 +851,16 @@ COMMAND cmd_init_words(RXIFRM *frm, void *ctx) {
 	return RXR_TRUE;
 }
 
+COMMAND cmd_version(RXIFRM *frm, void *ctx) {
+	RXA_TYPE(frm, 1) = RXT_TUPLE;
+	RXA_TUPLE(frm, 1)[0] = MA_VERSION_MAJOR;
+	RXA_TUPLE(frm, 1)[1] = MA_VERSION_MINOR;
+	RXA_TUPLE(frm, 1)[2] = MA_VERSION_REVISION;
+	RXA_TUPLE_LEN(frm, 1) = 3;
+	return RXR_VALUE;
+}
+
+
 COMMAND cmd_test(RXIFRM *frm, void *ctx) {
 	ASSERT_ENGINE();
 

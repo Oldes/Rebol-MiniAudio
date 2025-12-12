@@ -105,6 +105,9 @@ release device
 ## Extension commands:
 
 
+#### `version`
+Native MiniAudio version
+
 #### `get-devices`
 Retrive playback/capture device names
 

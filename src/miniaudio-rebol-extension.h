@@ -38,6 +38,7 @@ extern u32* type_words;
 
 enum ext_commands {
 	CMD_MINIAUDIO_INIT_WORDS,
+	CMD_MINIAUDIO_VERSION,
 	CMD_MINIAUDIO_GET_DEVICES,
 	CMD_MINIAUDIO_INIT_PLAYBACK,
 	CMD_MINIAUDIO_LOAD,
@@ -64,6 +65,7 @@ enum ext_commands {
 
 
 int cmd_init_words(RXIFRM *frm, void *ctx);
+int cmd_version(RXIFRM *frm, void *ctx);
 int cmd_get_devices(RXIFRM *frm, void *ctx);
 int cmd_init_playback(RXIFRM *frm, void *ctx);
 int cmd_load(RXIFRM *frm, void *ctx);
@@ -139,8 +141,9 @@ enum ma_type_words {W_TYPE_0,
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define MINIAUDIO_EXT_INIT_CODE \
-	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.22 Needs: 3.14.1 Author: Oldes Date: 7-Apr-2025/12:02:20 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
+	"REBOL [Title: \"Rebol MiniAudio Extension\" Name: miniaudio Type: module Version: 0.11.22 Needs: 3.14.1 Author: Oldes Date: 12-Dec-2025/11:43:17 License: MIT Url: https://github.com/Oldes/Rebol-MiniAudio]\n"\
 	"init-words: command [args [block!] type [block!]]\n"\
+	"version: command [\"Native MiniAudio version\"]\n"\
 	"get-devices: command [\"Retrive playback/capture device names\"]\n"\
 	"init-playback: command [\"Initialize a playback device\" index [integer!] /pause \"Don't start it automatically\" /channels \"The number of channels to use for playback\" number [integer!] {When set to 0 the device's native channel count will be used} /period \"Hint for making up the device's entire buffer\" size [integer!] \"The desired size of a period in milliseconds\" /callback {On-data callback (two args.. buffer frames, and engine total frames)} context [object!] \"The function's context\" word [word!] \"The function's name\"]\n"\
 	"load: command [\"Loads a file and returns sound's handle\" sound [file!] /group {Group of sounds which have their own effect processing and volume control} node [handle!] \"ma-group handle\"]\n"\

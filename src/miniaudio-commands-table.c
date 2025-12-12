@@ -12,6 +12,7 @@
 #include "miniaudio-rebol-extension.h"
 MyCommandPointer Command[] = {
 	cmd_init_words,
+	cmd_version,
 	cmd_get_devices,
 	cmd_init_playback,
 	cmd_load,

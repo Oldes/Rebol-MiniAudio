@@ -17,6 +17,8 @@ audio: import 'miniaudio
 print as-yellow "Content of the module..."
 ? audio
 
+print ["MiniAudio native version:" audio/version]
+
 ;; for the CI test, try to use first playback device available
 ;; paused for the purpose of the test!
 try/with [

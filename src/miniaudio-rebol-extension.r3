@@ -1,9 +1,9 @@
 REBOL [
 	title:  "Rebol/MiniAudio module builder"
 	type:    module
-	date:    4-Jun-2024
+	date:    12-Dec-2025
 	home:    https://github.com/Oldes/Rebol-MiniAudio
-	version: 0.11.21.0
+	version: 0.11.23.0
 	author: @Oldes
 ]
 
@@ -11,6 +11,8 @@ REBOL [
 commands: [
 	init-words:    [args [block!] type [block!]] ;; used internaly only!
 	;test:  ["..."]
+
+	version: ["Native MiniAudio version"]
 
 	get-devices:   ["Retrive playback/capture device names"]
 	init-playback: [
@@ -265,7 +267,7 @@ type-words: [
 reb-code: ajoin [
 	{REBOL [Title: "Rebol MiniAudio Extension"}
 	{ Name: miniaudio Type: module}
-	{ Version: 0.11.22}
+	{ Version: 0.11.23}
 	{ Needs: 3.14.1}
 	{ Author: Oldes}
 	{ Date: } now/utc
