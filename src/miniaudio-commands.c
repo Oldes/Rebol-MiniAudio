@@ -75,25 +75,29 @@ static ma_uint64 abs_sound_time_to_frames(RXIARG *arg, ma_sound *sound) {
 }
 
 static ma_result sound_init_from_arg(RXIARG *file, REBSER **out_ser, ma_uint32 flags, ma_sound_group* pGroup, ma_fence* pDoneFence, ma_sound* pSound) {
-	ma_result result;
+	REBSER *ser;
+#ifdef TO_WINDOWS
 	// Convert Rebol file to full local path
-	// Not using UTF-8 yet, because this series is stored and accessible from Rebol!
-	REBSER *ser = RL_TO_LOCAL_PATH(file, 1, 0);
+	ser = RL_TO_LOCAL_PATH(file, 1, 0);
 	if (!ser) return MA_INVALID_FILE;
 	*out_ser = ser;
-
-#ifdef TO_WINDOWS
-	// On Windows the result is always a wide-character string
-	result = ma_sound_init_from_file_w(pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
-#else
-	if (rebol_version < 32000) {
-		// On Posix convert to UTF-8 first (on Rebol versions older than 3.20.0)
+	return ma_sound_init_from_file_w(pEngine->engine, (const wchar_t*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
+#endif
+	// Posix version...
+	if (rebol_version >= 32000) {
+		ser = RL_TO_LOCAL_PATH(file, 1, 1);
+		if (!ser) return MA_INVALID_FILE;
+		*out_ser = ser;
+	} else {
+		// Backwards compatibility
+		// Not using UTF-8 yet, because this series is stored and accessible from Rebol!
+		ser = RL_TO_LOCAL_PATH(file, 1, 0);
+		if (!ser) return MA_INVALID_FILE;
+		*out_ser = ser;
 		ser = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), 1, 0);
 		if (!ser) return MA_INVALID_FILE;
 	}
-	result = ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
-#endif
-	return result;
+	return ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
 }
 
 
