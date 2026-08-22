@@ -66,6 +66,8 @@ words: [
 		volume fade-volume pan pitch position cursor time duration frames sample-rate
 		spatialize is-looping is-playing at-end source start stop
 		x y z outputs output resources channels gain-db
+		rolloff min-distance max-distance min-gain max-gain
+		doppler-factor attenuation positioning
 		amplitude frequency format type delay decay dry wet
 	]
 	;; @@ Order is important - the C side indexes this list by the
@@ -81,6 +83,13 @@ words: [
 		square
 		triangle
 		sawtooth
+		;- attenuation models (ma_attenuation_model order)
+		inverse
+		linear
+		exponential
+		;- positioning modes (ma_positioning order)
+		absolute
+		relative
 		;- format types
 		;; @@ must follow the ma_format enum, `unknown` included, because
 		;; the C side indexes this from W_MINIAUDIO_TYPE_UNKNOWN
@@ -119,6 +128,14 @@ handles: [
 		y              decimal!  [integer! decimal!] "Sound Y position"
 		z              decimal!  [integer! decimal!] "Sound Z position"
 		source        [file! handle!] none           "Sound source as a loaded file or data source node"
+		rolloff        decimal!  [integer! decimal!] "How quickly the sound gets quieter with distance"
+		min-distance   decimal!  [integer! decimal!] "Distance below which no attenuation is applied"
+		max-distance   decimal!  [integer! decimal!] "Distance above which no further attenuation is applied"
+		min-gain       decimal!  [integer! decimal!] "Lower bound of the attenuated gain"
+		max-gain       decimal!  [integer! decimal!] "Upper bound of the attenuated gain"
+		doppler-factor decimal!  [integer! decimal!] "Strength of the doppler effect, 0 disables it"
+		attenuation   [word! none!] [word! none!]    "inverse, linear, exponential or none to disable it"
+		positioning    word!      word!              "absolute or relative (to the listener)"
 		outputs        integer!   none               "Number of output buses"
 		output         none      [handle! none!]     "Output bus node (write only)"
 	]

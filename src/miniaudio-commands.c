@@ -387,6 +387,48 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		pos = ma_sound_get_position(sound);
 		arg->dec64 = pos.z;
 		break;
+
+	//-- spatialization ------------------------------------------------
+	case W_MINIAUDIO_ARG_ROLLOFF:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_rolloff(sound);
+		break;
+	case W_MINIAUDIO_ARG_MIN_DISTANCE:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_min_distance(sound);
+		break;
+	case W_MINIAUDIO_ARG_MAX_DISTANCE:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_max_distance(sound);
+		break;
+	case W_MINIAUDIO_ARG_MIN_GAIN:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_min_gain(sound);
+		break;
+	case W_MINIAUDIO_ARG_MAX_GAIN:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_max_gain(sound);
+		break;
+	case W_MINIAUDIO_ARG_DOPPLER_FACTOR:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_doppler_factor(sound);
+		break;
+	case W_MINIAUDIO_ARG_ATTENUATION: {
+		ma_attenuation_model model = ma_sound_get_attenuation_model(sound);
+		if (model == ma_attenuation_model_none) {
+			// there is no `none` word - the real none value is used instead
+			*type = RXT_NONE;
+			break;
+		}
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_INVERSE + model - 1];
+		break;
+	}
+	case W_MINIAUDIO_ARG_POSITIONING:
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_ABSOLUTE + ma_sound_get_positioning(sound)];
+		break;
+		
 	case W_MINIAUDIO_ARG_OUTPUTS:
 		*type = RXT_INTEGER;
 		arg->uint64 = ma_node_get_output_bus_count((ma_node*)sound);
@@ -479,6 +521,52 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		ma_sound_set_position(sound, pos.x, pos.y, pos.z);
 
 		break;
+
+	//-- spatialization ------------------------------------------------
+	case W_MINIAUDIO_ARG_ROLLOFF:
+	case W_MINIAUDIO_ARG_MIN_DISTANCE:
+	case W_MINIAUDIO_ARG_MAX_DISTANCE:
+	case W_MINIAUDIO_ARG_MIN_GAIN:
+	case W_MINIAUDIO_ARG_MAX_GAIN:
+	case W_MINIAUDIO_ARG_DOPPLER_FACTOR: {
+		float value;
+		switch (*type) {
+		case RXT_DECIMAL:
+		case RXT_PERCENT:  value = (float)arg->dec64; break;
+		case RXT_INTEGER:  value = (float)arg->int64; break;
+		default: return PE_BAD_SET_TYPE;
+		}
+		if (value < 0) return PE_BAD_SET;
+		switch (word) {
+		case W_MINIAUDIO_ARG_ROLLOFF:        ma_sound_set_rolloff(sound, value);        break;
+		case W_MINIAUDIO_ARG_MIN_DISTANCE:   ma_sound_set_min_distance(sound, value);   break;
+		case W_MINIAUDIO_ARG_MAX_DISTANCE:   ma_sound_set_max_distance(sound, value);   break;
+		case W_MINIAUDIO_ARG_MIN_GAIN:       ma_sound_set_min_gain(sound, value);       break;
+		case W_MINIAUDIO_ARG_MAX_GAIN:       ma_sound_set_max_gain(sound, value);       break;
+		case W_MINIAUDIO_ARG_DOPPLER_FACTOR: ma_sound_set_doppler_factor(sound, value); break;
+		}
+		break;
+	}
+	case W_MINIAUDIO_ARG_ATTENUATION: {
+		u32 w;
+		if (*type == RXT_NONE) {
+			ma_sound_set_attenuation_model(sound, ma_attenuation_model_none);
+			break;
+		}
+		if (*type != RXT_WORD) return PE_BAD_SET_TYPE;
+		w = RL_FIND_WORD(Miniaudio_type_words, (REBCNT)arg->int64);
+		if (w < W_MINIAUDIO_TYPE_INVERSE || w > W_MINIAUDIO_TYPE_EXPONENTIAL) return PE_BAD_SET;
+		ma_sound_set_attenuation_model(sound, (ma_attenuation_model)(w - W_MINIAUDIO_TYPE_INVERSE + 1));
+		break;
+	}
+	case W_MINIAUDIO_ARG_POSITIONING: {
+		u32 w;
+		if (*type != RXT_WORD) return PE_BAD_SET_TYPE;
+		w = RL_FIND_WORD(Miniaudio_type_words, (REBCNT)arg->int64);
+		if (w < W_MINIAUDIO_TYPE_ABSOLUTE || w > W_MINIAUDIO_TYPE_RELATIVE) return PE_BAD_SET;
+		ma_sound_set_positioning(sound, (ma_positioning)(w - W_MINIAUDIO_TYPE_ABSOLUTE));
+		break;
+	}
 
 	case W_MINIAUDIO_ARG_OUTPUT:
 		if (*type == RXT_NONE) {
@@ -612,6 +700,7 @@ int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		arg->series = hob->series;
 		arg->index = 0;
 		break;
+
 	default:
 		return PE_BAD_SELECT;	
 	}

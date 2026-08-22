@@ -322,9 +322,58 @@ group "Loading sounds"
 	x           [decimal!]
 	y           [decimal!]
 	z           [decimal!]
+	rolloff        [decimal!]
+	min-distance   [decimal!]
+	max-distance   [decimal!]
+	min-gain       [decimal!]
+	max-gain       [decimal!]
+	doppler-factor [decimal!]
+	attenuation    [word!]
+	positioning    [word!]
 	outputs     [integer!]
 	source      [string! handle! none!]
 ]
+--test-- "sound attenuation defaults" [
+	all [
+		sound/attenuation = 'inverse
+		sound/positioning = 'absolute
+		sound/rolloff > 0
+	]
+]
+
+foreach [field value] [
+	rolloff        2.0
+	min-distance   0.5
+	max-distance   100.0
+	min-gain       0.1
+	max-gain       0.9
+	doppler-factor 0.0
+][
+	--test-- ajoin ["sound/" field " round trip"] [
+		sound/:field: value
+		about? sound/:field value 0.001
+	]
+]
+foreach word [inverse linear exponential][
+	--test-- ajoin ["sound attenuation " word] [
+		sound/attenuation: word
+		word = sound/attenuation
+	]
+]
+
+--test-- "sound attenuation can be disabled" [
+	sound/attenuation: none
+	none? sound/attenuation
+]
+--test-- "sound positioning round trip" [
+	sound/positioning: 'relative
+	all ['relative = sound/positioning  'absolute = (sound/positioning: 'absolute)]
+]
+--test-- "an unknown attenuation model is refused" [
+	error? try [sound/attenuation: 'quadratic]
+]
+--test-- "attenuation is refused a non-word" [error? try [sound/attenuation: 2]]
+--test-- "a negative rolloff is refused" [error? try [sound/rolloff: -1.0]]
 
 --test-- "sound has a non-zero duration" [sound/duration > 0:0:0]
 --test-- "sound time round trip" [
