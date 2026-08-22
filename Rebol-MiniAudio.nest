@@ -87,6 +87,9 @@ define: REB_EXT
 ;; reads the spec path as `first system/script/args`.
 do %make-extension.r3 [%src/miniaudio.reb]
 
+;- keep the README's reference sections in sync with the same spec ----
+do %make-readme.r3 [%src/miniaudio.reb]
+
 files: [
 	%src/miniaudio.c
 	%src/miniaudio-commands.c

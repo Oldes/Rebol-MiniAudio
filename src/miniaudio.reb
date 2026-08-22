@@ -82,11 +82,14 @@ words: [
 		triangle
 		sawtooth
 		;- format types
-		f32
+		;; @@ must follow the ma_format enum, `unknown` included, because
+		;; the C side indexes this from W_MINIAUDIO_TYPE_UNKNOWN
+		unknown
+		u8
 		s16
 		s24
 		s32
-		u8
+		f32
 	]
 ]
 
@@ -101,7 +104,6 @@ handles: [
 		pitch          decimal!   decimal!           "Sound pitch"
 		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
 		cursor         integer!  [integer! time!]    "Sound playback position in PCM frames"
-		time           time!      time!              "Sound playback position as time"
 		duration       time!      none               "Sound duration in time"
 		frames         integer!   none               "Sound length in PCM frames"
 		sample-rate    integer!   none               "Number of samples per second"
@@ -116,7 +118,7 @@ handles: [
 		z              decimal!  [integer! decimal!] "Sound Z position"
 		source        [file! handle!] none           "Sound source as a loaded file or data source node"
 		outputs        integer!   none               "Number of output buses"
-		output         handle!   [handle! none!]     "Output bus node"
+		output         none      [handle! none!]     "Output bus node (write only)"
 	]
 	ma-group: [
 		"MiniAudio sound group"
@@ -125,8 +127,6 @@ handles: [
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound group pitch"
 		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"
-		time           time!      time!              "Sound group playback position as time"
-		duration       time!      none               "Sound group duration in time"
 		sample-rate    integer!   none               "Number of samples per second"
 		spatialize     logic!     logic!             "3D spatialization state"
 		is-playing     logic!     logic!             "Whether sound is playing"
@@ -136,13 +136,13 @@ handles: [
 		y              decimal!  [integer! decimal!] "Sound group Y position"
 		z              decimal!  [integer! decimal!] "Sound group Z position"
 		outputs        integer!   none               "Number of output buses"
-		output         handle!   [handle! none!]     "Output bus node"
+		output         none      [handle! none!]     "Output bus node (write only)"
 		resources      block!     none               "Used group resources (sounds, nodes..)"
 	]
 	ma-engine: [
 		"MiniAudio device engine"
 		volume         decimal!  [integer! decimal! percent!] "Global volume"
-		cursor         integer!  [integer! time!]    "Engine playback position in PCM frames"
+		frames         integer!  [integer! time!]    "Engine playback position in PCM frames"
 		time           time!      time!              "Engine playback position as time"
 		resources      block!     none               "Used engine resources (sounds, nodes..)"
 		channels       integer!   none               "Number of output channels"
@@ -152,14 +152,14 @@ handles: [
 	ma-noise: [
 		"MiniAudio noise generator"
 		amplitude      decimal!   decimal!           "Maximum value of the noise signal"
-		format         word!      none               "f32, s16, s24, s32, u8"
+		format         word!      none               "u8, s16, s24, s32 or f32"
 		type           word!      none               "white, pink or brownian"
 	]
 	ma-waveform: [
 		"MiniAudio sine, square, triangle and sawtooth waveforms generator"
 		amplitude      decimal!   decimal!           "Signal amplitude"
 		frequency      decimal!   decimal!           "Signal frequency in hertzs"
-		format         word!      none               "f32, s16, s24, s32, u8"
+		format         word!      none               "u8, s16, s24, s32 or f32"
 		type           word!      none               "sine, square, triangle or sawtooth"
 	]
 	ma-delay: [
@@ -214,7 +214,7 @@ commands: [
 	]
 
 	start: [
-		"Start sound or device playback"
+		{Start sound or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.}
 		handle  [handle!] "ma-sound or ma-engine handle"
 		/loop   "Turn looping on (only for sounds)"
 		/seek   "Starting position"
@@ -247,7 +247,7 @@ commands: [
 		amplitude [decimal!] "The peak amplitude of the noise"
 		/seed                "Optional random seed"
 		 val [integer!]
-		/format              "The sample format (default is 2 = signed 16bit float)"
+		/format              "The sample format (default is 2 = signed 16bit integer)"
 		 frm [integer!]      "Value betweem 1 - 5"
 	]
 	make-waveform-node: [
@@ -255,7 +255,7 @@ commands: [
 		type      [integer!] "The type of waveform to generate (0 - 3)"
 		amplitude [decimal!] "The peak amplitude of the waveform"
 		frequency [decimal!] "The frequency of the waveform in Hertz (Hz)"
-		/format "The sample format (default is 2 = signed 16bit float)"
+		/format "The sample format (default is 2 = signed 16bit integer)"
 		 frm [integer!] "Value betweem 1 - 5"
 	]
 	make-delay-node: [

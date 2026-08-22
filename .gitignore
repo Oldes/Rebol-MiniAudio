@@ -9,5 +9,6 @@
 !/LICENSE
 !/ci-test.r3
 !/test.r3
+!/demo.r3
 !/Entitlements.plist
 */gen-*

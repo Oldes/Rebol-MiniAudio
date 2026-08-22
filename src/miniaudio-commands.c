@@ -703,8 +703,8 @@ int MANoise_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_WHITE + noise->config.type];
 		break;
 	case W_MINIAUDIO_ARG_FORMAT:
-		*type = RXT_INTEGER;
-		arg->int64 = noise->config.format;
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_UNKNOWN + noise->config.format];
 		break;
 	default:
 		return PE_BAD_SELECT;	
@@ -753,7 +753,7 @@ int MAWaveform_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		break;
 	case W_MINIAUDIO_ARG_FORMAT:
 		*type = RXT_WORD;
-		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_F32 + waveform->config.format];
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_UNKNOWN + waveform->config.format];
 		break;
 	default:
 		return PE_BAD_SELECT;	
