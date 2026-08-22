@@ -3,9 +3,9 @@
 ;-  (/uOu\)  https://github.com/Siskin-framework/Builder/                       
 ;-===="="=======================================================================
 
-github: @miniaudio
+github: mackron/miniaudio 0.11.25
 
-version: 0.11.23
+version: 0.11.25
 
 include:  %miniaudio/
 
@@ -67,7 +67,7 @@ target-armv7: [
 
 #if macOS? [
 	sign: on
-	entitlements: %miniaudio/Entitlements.plist
+	entitlements: %Entitlements.plist
 	define: DISABLE_MANUAL_TARGET_ORDER_BUILD_WARNING
 	define: MA_NO_RUNTIME_LINKING
 	define: MA_ENABLE_ONLY_SPECIFIC_BACKENDS
