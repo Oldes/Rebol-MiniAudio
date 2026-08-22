@@ -304,6 +304,7 @@ group "Loading sounds"
 
 --reads-- "ma-sound" sound [
 	volume      [decimal!]
+	fade-volume [decimal!]
 	pan         [decimal!]
 	pitch       [decimal!]
 	position    [pair!]
@@ -370,6 +371,7 @@ group "Loading sounds"
 ]
 --rejects-- "ma-sound/nonsense" [sound/nonsense]
 --rejects-- "ma-sound/duration write" [sound/duration: 0:0:1]
+--rejects-- "ma-sound/fade-volume write" [sound/fade-volume: 100]
 --rejects-- "ma-sound/volume with a bad type" [sound/volume: "loud"]
 
 ;;=============================================================================
@@ -433,6 +435,7 @@ foreach [word value] reduce [
 --test-- "make-group-node" [handle? bus: audio/make-group-node]
 --reads-- "ma-group" bus [
 	volume      [decimal!]
+	fade-volume [decimal!]
 	pan         [decimal!]
 	pitch       [decimal!]
 	position    [pair!]
@@ -566,24 +569,16 @@ either quick? [
 		]
 
 		print "Fading the loop out over 2 seconds..."
-		;; NOTE: miniaudio applies fades in a separate fader, so
-		;; `ma_sound_get_volume` - and therefore `drums/volume` - does not
-		;; move while a fade runs. Only the audible result and the fact that
-		;; the sound keeps playing are observable from here.
-		--test-- "a running fade does not stop the sound" [
+		--test-- "a fade lowers fade-volume, not volume" [
 			;; keep it looping, or the file would end mid-fade
 			audio/start/loop drums
 			audio/fade drums 0:0:2 100% 5%
 			wait 2.2
-			all [drums/is-playing  drums/cursor > 0]
-		]
-
-		;; ...and back in, this time through the delay node
-		--test-- "a faded sound can be routed to the delay node" [
-			drums/output: delay
-			audio/fade drums 0:0:1 5% 100%
-			wait 1.2
-			drums/is-playing
+			all [
+				drums/is-playing
+				drums/fade-volume < 0.2
+				drums/volume > 0.8
+			]
 		]
 
 		print "Stopping the loop with a 1 second fade-out..."

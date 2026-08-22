@@ -283,6 +283,7 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound pitch"
 /position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
@@ -310,6 +311,7 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"

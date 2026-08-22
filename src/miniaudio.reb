@@ -63,7 +63,7 @@ extern REBCNT Handle_MAGroup;
 words: [
 	;; path accessors of all handle types below
 	arg: [
-		volume pan pitch position cursor time duration frames sample-rate
+		volume fade-volume pan pitch position cursor time duration frames sample-rate
 		spatialize is-looping is-playing at-end source start stop
 		x y z outputs output resources channels gain-db
 		amplitude frequency format type delay decay dry wet
@@ -100,6 +100,7 @@ handles: [
 		"MiniAudio sound object"
 		;NAME          GET       SET                 DESCRIPTION
 		volume         decimal!  [integer! decimal! percent!] "Sound volume"
+		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound pitch"
 		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
@@ -125,6 +126,7 @@ handles: [
 		"MiniAudio sound group"
 		;NAME          GET       SET                 DESCRIPTION
 		volume         decimal!  [integer! decimal! percent!] "Sound volume"
+		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound group pitch"
 		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"

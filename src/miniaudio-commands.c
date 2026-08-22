@@ -293,6 +293,10 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_volume(sound);
 		break;
+	case W_MINIAUDIO_ARG_FADE_VOLUME:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_get_current_fade_volume(sound);
+		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		*type = RXT_PAIR;
 		pos = ma_sound_get_position(sound);
@@ -538,6 +542,10 @@ int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	case W_MINIAUDIO_ARG_VOLUME:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_group_get_volume(group);
+		break;
+	case W_MINIAUDIO_ARG_FADE_VOLUME:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_sound_group_get_current_fade_volume(group);
 		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		*type = RXT_PAIR;
