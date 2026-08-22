@@ -308,6 +308,7 @@ group "Loading sounds"
 	pitch       [decimal!]
 	position    [pair!]
 	cursor      [integer!]
+	time        [time!]
 	duration    [time!]
 	frames      [integer!]
 	sample-rate [integer!]
@@ -325,6 +326,14 @@ group "Loading sounds"
 ]
 
 --test-- "sound has a non-zero duration" [sound/duration > 0:0:0]
+--test-- "sound time round trip" [
+	sound/time: 0:0:0.5
+	all [
+		about? sound/cursor (sound/sample-rate / 2) 100
+		about? to decimal! sound/time 0.5 0.02
+	]
+]
+--test-- "sound time is refused a non-time value" [error? try [sound/time: 100]]
 --test-- "sound frames match the duration" [sound/frames > 0]
 --test-- "fresh sound is not playing" [not sound/is-playing]
 --test-- "fresh sound is not at end" [not sound/at-end]
@@ -427,6 +436,7 @@ foreach [word value] reduce [
 	pan         [decimal!]
 	pitch       [decimal!]
 	position    [pair!]
+	time        [time!]
 	sample-rate [integer!]
 	spatialize  [logic!]
 	is-playing  [logic!]

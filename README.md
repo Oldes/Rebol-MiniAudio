@@ -287,6 +287,7 @@ Return true if sound ended
 /pitch            decimal!            decimal!                      "Sound pitch"
 /position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
 /cursor           integer!            [integer! time!]              "Sound playback position in PCM frames"
+/time             time!               time!                         "Sound playback position as time"
 /duration         time!               none                          "Sound duration in time"
 /frames           integer!            none                          "Sound length in PCM frames"
 /sample-rate      integer!            none                          "Number of samples per second"
@@ -312,6 +313,7 @@ Return true if sound ended
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"
+/time             time!               none                          "Sound group playback position as time"
 /sample-rate      integer!            none                          "Number of samples per second"
 /spatialize       logic!              logic!                        "3D spatialization state"
 /is-playing       logic!              logic!                        "Whether sound is playing"
@@ -382,6 +384,4 @@ format_s16:    2  ;; Seems to be the most widely supported format.
 format_s24:    3  ;; Tightly packed. 3 bytes per sample.
 format_s32:    4
 format_f32:    5
-
-white-noise: does [play noise-node 0 0.5]
 ```

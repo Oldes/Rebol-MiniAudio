@@ -1,7 +1,7 @@
 REBOL [
 	Title:   "Rebol MiniAudio Extension"
 	Name:    miniaudio
-	Version: 0.11.23
+	Version: 0.11.25
 	Needs:   3.22.5
 	Author:  @Oldes
 	License: MIT
@@ -104,6 +104,7 @@ handles: [
 		pitch          decimal!   decimal!           "Sound pitch"
 		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
 		cursor         integer!  [integer! time!]    "Sound playback position in PCM frames"
+		time           time!      time!              "Sound playback position as time"
 		duration       time!      none               "Sound duration in time"
 		frames         integer!   none               "Sound length in PCM frames"
 		sample-rate    integer!   none               "Number of samples per second"
@@ -127,6 +128,7 @@ handles: [
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound group pitch"
 		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"
+		time           time!      none               "Time the group has been playing"
 		sample-rate    integer!   none               "Number of samples per second"
 		spatialize     logic!     logic!             "3D spatialization state"
 		is-playing     logic!     logic!             "Whether sound is playing"

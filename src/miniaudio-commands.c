@@ -312,6 +312,15 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		ma_sound_get_cursor_in_pcm_frames(sound, &frames);
 		arg->int64 = frames;
 		break;
+	case W_MINIAUDIO_ARG_TIME:
+		// NOTE: not ma_sound_get_time_in_pcm_frames - that one returns the
+		// node's local time, which is only advanced while the graph is
+		// processing the sound and is not affected by seeking.
+		*type = RXT_TIME;
+		ma_sound_get_cursor_in_pcm_frames(sound, &frames);
+		sampleRate = ma_engine_get_sample_rate(ma_sound_get_engine(sound));
+		arg->uint64 = (frames * 1000000000) / sampleRate;
+		break;
 	case W_MINIAUDIO_ARG_DURATION:
 		*type = RXT_TIME;
 		ma_sound_get_length_in_pcm_frames(sound, &frames);
@@ -411,6 +420,13 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_INTEGER) return PE_BAD_SET_TYPE;
 		if (arg->int64 < 0) arg->int64 = 0;
 		ma_sound_seek_to_pcm_frame(sound, arg->uint64);
+		break;
+	case W_MINIAUDIO_ARG_TIME:
+		if (*type != RXT_TIME) return PE_BAD_SET_TYPE;
+		if (arg->int64 < 0) return PE_BAD_SET;
+		engine = ma_sound_get_engine(sound);
+		frames = (arg->uint64 * ma_engine_get_sample_rate(engine)) / 1000000000;
+		ma_sound_seek_to_pcm_frame(sound, frames);
 		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;
@@ -514,8 +530,8 @@ int MAGroup_free(void* hndl) {
 int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	ma_sound_group* group = (ma_sound_group*)hob->data;
 	word = RL_FIND_WORD(Miniaudio_arg_words, word);
-	//ma_uint64 frames;
-	//ma_uint32 sampleRate;
+	ma_uint64 frames;
+	ma_uint32 sampleRate;
 	ma_vec3f pos;
 
 	switch (word) {
@@ -528,6 +544,12 @@ int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		pos = ma_sound_group_get_position(group);
 		arg->dec32a = pos.x;
 		arg->dec32b = pos.y;
+		break;
+	case W_MINIAUDIO_ARG_TIME:
+		*type = RXT_TIME;
+		frames = ma_sound_group_get_time_in_pcm_frames(group);
+		sampleRate = ma_engine_get_sample_rate(ma_sound_group_get_engine(group));
+		arg->uint64 = (frames * 1000000000) / sampleRate;
 		break;
 	case W_MINIAUDIO_ARG_PAN:
 		*type = RXT_DECIMAL;
