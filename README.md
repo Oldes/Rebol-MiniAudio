@@ -177,10 +177,10 @@ Pause sound playback
 * `sound` `[handle!]`
 
 #### `start` `:handle`
-Start sound or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.
-* `handle` `[handle!]` ma-sound or ma-engine handle
+Start sound, group or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.
+* `handle` `[handle!]` ma-sound, ma-group or ma-engine handle
 * `/loop` Turn looping on (only for sounds)
-* `/seek` Starting position
+* `/seek` Starting position (only for sounds)
 * `frames` `[integer! time!]` PCM frames or time
 * `/fade` Fade in the sound
 * `in` `[integer! time!]` PCM frames or time
@@ -188,10 +188,10 @@ Start sound or device playback. A sound is restarted from its beginning (use /se
 * `time` `[integer! time!]` PCM frames or time
 
 #### `stop` `:handle`
-Stop sound or device playback
-* `handle` `[handle!]` ma-sound or ma-engine handle
+Stop sound, group or device playback
+* `handle` `[handle!]` ma-sound, ma-group or ma-engine handle
 * `/fade`
-* `out` `[integer! time!]` PCM frames or time (only for sounds)
+* `out` `[integer! time!]` PCM frames or time (not for the device)
 
 #### `fade` `:sound` `:frames` `:start` `:end`
 Fade sound volume
@@ -313,7 +313,7 @@ Return true if sound ended
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"
-/time             time!               none                          "Sound group playback position as time"
+/time             time!               none                          "Time the group has been playing"
 /sample-rate      integer!            none                          "Number of samples per second"
 /spatialize       logic!              logic!                        "3D spatialization state"
 /is-playing       logic!              logic!                        "Whether sound is playing"

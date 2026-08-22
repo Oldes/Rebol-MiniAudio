@@ -454,6 +454,30 @@ foreach [word value] reduce [
 		1 = length? bus/resources
 	]
 ]
+--test-- "a group can be started and stopped" [
+	all [
+		handle? audio/start bus
+		bus/is-playing
+		handle? audio/stop bus
+		not bus/is-playing
+	]
+]
+--test-- "a group can be stopped with a fade" [
+	audio/start bus
+	audio/stop/fade bus 0:0:0.2
+	;; A faded stop is scheduled against the ENGINE clock, which does not
+	;; advance while the device is paused - and it still is here, so
+	;; waiting would achieve nothing. Move the clock past the stop time
+	;; instead, which also makes the test instant and deterministic.
+	device/frames: device/frames + device/sample-rate
+	not bus/is-playing
+]
+--test-- "a group refuses /loop and /seek" [
+	all [
+		error? try [audio/start/loop bus]
+		error? try [audio/start/seek bus 100]
+	]
+]
 --test-- "sound output can be routed to a delay node" [
 	sound/output: delay
 	;; `output` is write only - `outputs` is the readable bus count

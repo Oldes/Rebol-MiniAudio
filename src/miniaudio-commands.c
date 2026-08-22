@@ -1151,6 +1151,41 @@ COMMAND cmd_miniaudio_start(RXIFRM *frm, void *ctx) {
 		ma_device_start(context->device);
 		return RXR_VALUE;
 	}
+	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAGroup) {
+		ma_sound_group *group = (ma_sound_group*)hob->handle;
+		// Groups have no cursor, so /seek and /loop are not applicable.
+		if (RXA_REF(frm, 2) || RXA_REF(frm, 3))
+			RETURN_ERROR("Groups do not support /loop or /seek.");
+
+		if (RXA_REF(frm, 7)) { // /at
+			if (RXA_INT64(frm, 8) < 0) RXA_INT64(frm, 8) = 0;
+			sampleRate = ma_engine_get_sample_rate(ma_sound_group_get_engine(group));
+			if (RXA_TYPE(frm, 8) == RXT_INTEGER) {
+				frame = RXA_INT64(frm, 8);
+			} else {
+				frame = (RXA_TIME(frm, 8) * sampleRate) / 1000000000;
+			}
+			frame += ma_engine_get_time_in_pcm_frames(ma_sound_group_get_engine(group));
+			ma_sound_group_set_start_time_in_pcm_frames(group, frame);
+		}
+
+		ma_sound_group_start(group);
+
+		if (RXA_REF(frm, 5)) { // /fade
+			ma_uint64 fade;
+			switch(RXA_TYPE(frm, 6)) {
+			case RXT_INTEGER:
+				fade = (ma_uint64)RXA_INT64(frm, 6);
+				if (fade > 0) ma_sound_group_set_fade_in_pcm_frames(group, 0, 1, fade);
+				break;
+			case RXT_TIME:
+				fade = RXA_TIME(frm, 6) / 1000000; // time in ms
+				if (fade > 0) ma_sound_group_set_fade_in_milliseconds(group, 0, 1, fade);
+				break;
+			}
+		}
+		return RXR_VALUE;
+	}
 	return RXR_FALSE;
 }
 
@@ -1177,6 +1212,21 @@ COMMAND cmd_miniaudio_stop(RXIFRM *frm, void *ctx) {
 	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAEngine) {
 		context = (MAContext*)hob->handle;
 		ma_device_stop(context->device);
+		return RXR_VALUE;
+	}
+	else if (RXA_HANDLE_TYPE(frm, 1) == Handle_MAGroup) {
+		ma_sound_group *group = (ma_sound_group*)hob->handle;
+		switch(RXA_TYPE(frm, 3)) {
+		case RXT_NONE: ma_sound_group_stop(group); break;
+		// ma_sound_group is a typedef of ma_sound and miniaudio does not
+		// alias the faded stop for groups, so the sound version is used.
+		case RXT_INTEGER: ma_sound_stop_with_fade_in_pcm_frames(group, (ma_uint64)RXA_INT64(frm, 3)); break;
+		case RXT_TIME:
+			fade = RXA_TIME(frm, 3) / 1000000; // time in ms
+			if (fade <= 0) ma_sound_group_stop(group);
+			else ma_sound_stop_with_fade_in_milliseconds(group, (ma_uint64)fade);
+			break;
+		}
 		return RXR_VALUE;
 	}
 	return RXR_FALSE;

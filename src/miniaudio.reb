@@ -216,10 +216,10 @@ commands: [
 	]
 
 	start: [
-		{Start sound or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.}
-		handle  [handle!] "ma-sound or ma-engine handle"
+		{Start sound, group or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.}
+		handle  [handle!] "ma-sound, ma-group or ma-engine handle"
 		/loop   "Turn looping on (only for sounds)"
-		/seek   "Starting position"
+		/seek   "Starting position (only for sounds)"
 		 frames [integer! time!] "PCM frames or time"
 		/fade   "Fade in the sound"
 		 in     [integer! time!] "PCM frames or time"
@@ -227,9 +227,9 @@ commands: [
 		 time   [integer! time!] "PCM frames or time"
 	]
 	stop:  [
-		"Stop sound or device playback"
-		handle [handle!] "ma-sound or ma-engine handle"
-		/fade out [integer! time!] "PCM frames or time (only for sounds)"
+		"Stop sound, group or device playback"
+		handle [handle!] "ma-sound, ma-group or ma-engine handle"
+		/fade out [integer! time!] "PCM frames or time (not for the device)"
 	]
 	fade:  [
 		"Fade sound volume"
