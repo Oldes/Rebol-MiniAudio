@@ -6,42 +6,106 @@
 #include <stdio.h>
 #include <stdlib.h> // malloc
 
-#if !defined(_WIN32)
-# include <unistd.h>
-# define Sleep(t) sleep(t)
-#endif
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+    ma_decoder* pDecoder = (ma_decoder*)pDevice->pUserData;
+    if (pDecoder == NULL) {
+        return;
+    }
 
-ma_engine* pEngine = NULL;
+    ma_decoder_read_pcm_frames(pDecoder, pOutput, frameCount, NULL);
+
+    (void)pInput;
+}
 
 int main(int argc, char** argv)
 {
 
-	pEngine = malloc(sizeof(*pEngine));
-	if (MA_SUCCESS != ma_engine_init(NULL, pEngine)) return -1;
+    ma_result result;
+    ma_decoder decoder;
+    ma_device_config deviceConfig;
+    ma_device device;
+    ma_context context;
+    ma_device_info* pPlaybackDeviceInfos;
+    ma_uint32 playbackDeviceCount;
+    ma_device_info* pCaptureDeviceInfos;
+    ma_uint32 captureDeviceCount;
+    ma_uint32 iDevice;
 
-	ma_noise *pNoise = malloc(sizeof(ma_noise));
-	ma_sound *pSound = malloc(sizeof(ma_sound));
+    if (ma_context_init(NULL, 0, NULL, &context) != MA_SUCCESS) {
+        printf("Failed to initialize context.\n");
+        return -2;
+    }
 
-	ma_noise_config config = ma_noise_config_init(ma_format_u8, 1, 2, 0, 1.0);
-	if (MA_SUCCESS != ma_noise_init(&config, NULL, pNoise)) return -2;
-	printf("type: %i\n", pNoise->config.type); // here it is OK (2)
+    result = ma_context_get_devices(&context, &pPlaybackDeviceInfos, &playbackDeviceCount, &pCaptureDeviceInfos, &captureDeviceCount);
+    if (result != MA_SUCCESS) {
+        printf("Failed to retrieve device information.\n");
+        return -3;
+    }
 
-	if (MA_SUCCESS != ma_sound_init_from_data_source(pEngine, pNoise, 0, NULL, pSound)) return -3;
-	printf("type: %i\n", pNoise->config.type); // here it is zero!
-	ma_sound_start(pSound);
-	printf("type: %i\n", pNoise->config.type); // here it is zero!
+    printf("Playback Devices\n");
+    for (iDevice = 0; iDevice < playbackDeviceCount; ++iDevice) {
+        printf("    %u: %s [%s]\n", iDevice, pPlaybackDeviceInfos[iDevice].name, pPlaybackDeviceInfos[iDevice].id.alsa);
+    }
 
-	//ma_sound_set_volume(pSound, 0.01);
-	ma_sound_set_fade_in_pcm_frames(pSound, 0, 1.0, 44100);
-	
-	Sleep(2);
+    printf("\n");
 
-	ma_sound_uninit(pSound);
-	ma_noise_uninit(pNoise, NULL);
-	ma_engine_uninit(pEngine);
-	free(pEngine);
-	free(pNoise);
-	free(pSound);
+    printf("Capture Devices\n");
+    for (iDevice = 0; iDevice < captureDeviceCount; ++iDevice) {
+        printf("    %u: %s\n", iDevice, pCaptureDeviceInfos[iDevice].name);
+    }
 
-	return 0;
+
+    if (argc < 2) {
+        printf("No input file.\n");
+        return -1;
+    }
+
+    //ma_decoder_config deviceConfig;
+
+
+    result = ma_decoder_init_file(argv[1], NULL, &decoder);
+    if (result != MA_SUCCESS) {
+        printf("Could not load file: %s\n", argv[1]);
+        return -2;
+    }
+
+    printf("=============Decoder channels %u\n", decoder.outputChannels);
+
+    deviceConfig = ma_device_config_init(ma_device_type_playback);
+    deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[1].id;
+    deviceConfig.playback.format   = decoder.outputFormat;
+    deviceConfig.playback.channels = decoder.outputChannels;
+//    deviceConfig.playback.mixingMode
+    deviceConfig.sampleRate        = decoder.outputSampleRate;
+    deviceConfig.dataCallback      = data_callback;
+    deviceConfig.pUserData         = &decoder;
+    deviceConfig.alsa.noAutoChannels = 1;
+    // Set the channel map
+//ma_channel *channelMap;
+//ma_channel_map_init_blank(channelMap, 8);
+//// = {MA_CHANNEL_FRONT_RIGHT, MA_CHANNEL_FRONT_LEFT, MA_CHANNEL_LFE, MA_CHANNEL_FRONT_CENTER, MA_CHANNEL_BACK_LEFT, MA_CHANNEL_BACK_RIGHT, MA_CHANNEL_SIDE_LEFT, MA_CHANNEL_SIDE_RIGHT};  // Adjust as needed
+//ma_channel_map_init_standard(ma_standard_channel_map_alsa, channelMap, sizeof(channelMap), 8);
+//deviceConfig.playback.pChannelMap = channelMap;
+
+    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
+        printf("Failed to open playback device.\n");
+        ma_decoder_uninit(&decoder);
+        return -3;
+    }
+
+    if (ma_device_start(&device) != MA_SUCCESS) {
+        printf("Failed to start playback device.\n");
+        ma_device_uninit(&device);
+        ma_decoder_uninit(&decoder);
+        return -4;
+    }
+
+    printf("Press Enter to quit...");
+    getchar();
+
+    ma_device_uninit(&device);
+    ma_decoder_uninit(&decoder);
+
+    return 0;
 }

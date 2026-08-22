@@ -78,14 +78,20 @@ target-armv7: [
 	cflags: -fPIC
 ]
 
-;- generate main extension header --------------------------------
-do %src/miniaudio-rebol-extension.r3 
+;- extension sources are built out of the Rebol tree -------------
+define: REB_EXT
+
+;- generate the extension header and command table ---------------
+;; Produces %src/gen-miniaudio.h and %src/gen-miniaudio.c from the
+;; declarative specification. The args must be a block - the generator
+;; reads the spec path as `first system/script/args`.
+do %make-extension.r3 [%src/miniaudio.reb]
 
 files: [
 	%src/miniaudio.c
 	%src/miniaudio-commands.c
-	%src/miniaudio-commands-table.c
-	%src/miniaudio-rebol-extension.c
+	%src/gen-miniaudio.c
+	%src/miniaudio-extension.c
 ]
 
 eggs: [
