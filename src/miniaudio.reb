@@ -119,6 +119,7 @@ handles: [
 		;NAME          GET       SET                 DESCRIPTION
 		volume         decimal!  [integer! decimal! percent!] "Sound volume"
 		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
+		gain-db        decimal!  [integer! decimal!] "Volume as an amplification factor in decibels"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound pitch"
 		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
@@ -153,6 +154,7 @@ handles: [
 		;NAME          GET       SET                 DESCRIPTION
 		volume         decimal!  [integer! decimal! percent!] "Sound volume"
 		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
+		gain-db        decimal!  [integer! decimal!] "Volume as an amplification factor in decibels"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
 		pitch          decimal!   decimal!           "Sound group pitch"
 		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"

@@ -364,6 +364,7 @@ group "Loading sounds"
 --reads-- "ma-sound" sound [
 	volume      [decimal!]
 	fade-volume [decimal!]
+	gain-db     [decimal!]
 	pan         [decimal!]
 	pitch       [decimal!]
 	position    [pair!]
@@ -447,6 +448,28 @@ foreach word [inverse linear exponential][
 --test-- "fresh sound is not playing" [not sound/is-playing]
 --test-- "fresh sound is not at end" [not sound/at-end]
 --test-- "sound volume round trip" [sound/volume: 0.25  0.25 = round/to sound/volume 0.01]
+--test-- "full volume is 0 dB" [
+	sound/volume: 1.0
+	about? sound/gain-db 0.0 0.001
+]
+--test-- "sound gain-db round trip" [
+	sound/gain-db: -6.0
+	all [
+		about? sound/gain-db -6.0 0.001
+		;; -6 dB is roughly half the amplitude
+		about? sound/volume 0.5 0.01
+	]
+]
+--test-- "sound gain-db accepts an integer" [
+	sound/gain-db: 0
+	about? sound/volume 1.0 0.001
+]
+;; silence has no finite decibel value - the engine accessor does the same
+--test-- "a silent sound reports -inf dB" [
+	sound/volume: 0.0
+	sound/gain-db < -100.0
+]
+sound/volume: 1.0
 --test-- "sound pan round trip"    [sound/pan: -1.0     -1.0 = round/to sound/pan 0.01]
 --test-- "sound pitch round trip"  [sound/pitch: 1.5     1.5 = round/to sound/pitch 0.01]
 --test-- "sound looping round trip" [
@@ -544,6 +567,7 @@ foreach [word value] reduce [
 --reads-- "ma-group" bus [
 	volume      [decimal!]
 	fade-volume [decimal!]
+	gain-db     [decimal!]
 	pan         [decimal!]
 	pitch       [decimal!]
 	position    [pair!]
@@ -565,6 +589,12 @@ foreach [word value] reduce [
 		1 = length? bus/resources
 	]
 ]
+--test-- "group gain-db round trip" [
+	bus/gain-db: -6.0
+	all [about? bus/gain-db -6.0 0.001  about? bus/volume 0.5 0.01]
+]
+bus/gain-db: 0.0
+
 --test-- "a group can be started and stopped" [
 	all [
 		handle? audio/start bus

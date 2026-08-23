@@ -430,6 +430,10 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_current_fade_volume(sound);
 		break;
+	case W_MINIAUDIO_ARG_GAIN_DB:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_volume_linear_to_db(ma_sound_get_volume(sound));
+		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		*type = RXT_PAIR;
 		pos = ma_sound_get_position(sound);
@@ -594,6 +598,11 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		default: 
 			return PE_BAD_SET_TYPE;
 		}
+		break;
+	case W_MINIAUDIO_ARG_GAIN_DB:
+		if (*type == RXT_INTEGER) arg->dec64 = (double)arg->int64;
+		else if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
+		ma_sound_set_volume(sound, ma_volume_db_to_linear((float)arg->dec64));
 		break;
 	case W_MINIAUDIO_ARG_CURSOR:
 		if (*type != RXT_INTEGER) return PE_BAD_SET_TYPE;
@@ -768,6 +777,10 @@ int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_group_get_current_fade_volume(group);
 		break;
+	case W_MINIAUDIO_ARG_GAIN_DB:
+		*type = RXT_DECIMAL;
+		arg->dec64 = ma_volume_linear_to_db(ma_sound_group_get_volume(group));
+		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		*type = RXT_PAIR;
 		pos = ma_sound_group_get_position(group);
@@ -862,6 +875,11 @@ int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		default: 
 			return PE_BAD_SET_TYPE;
 		}
+		break;
+	case W_MINIAUDIO_ARG_GAIN_DB:
+		if (*type == RXT_INTEGER) arg->dec64 = (double)arg->int64;
+		else if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
+		ma_sound_group_set_volume(group, ma_volume_db_to_linear((float)arg->dec64));
 		break;
 	case W_MINIAUDIO_ARG_POSITION:
 		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;

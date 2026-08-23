@@ -284,6 +284,7 @@ Return true if sound ended
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
 /fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
+/gain-db          decimal!            [integer! decimal!]           "Volume as an amplification factor in decibels"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound pitch"
 /position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
@@ -320,6 +321,7 @@ Return true if sound ended
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
 /fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
+/gain-db          decimal!            [integer! decimal!]           "Volume as an amplification factor in decibels"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"
@@ -348,6 +350,8 @@ Return true if sound ended
 /channels         integer!            none                          "Number of output channels"
 /sample-rate      integer!            none                          "Ouput device sample rate per second"
 /gain-db          decimal!            [integer! decimal!]           "The amplification factor in decibels"
+/listener         handle!             none                          "The first listener as a ma-listener handle"
+/listeners        block!              none                          "All listeners of the engine as ma-listener handles"
 ```
 
 #### __MA-LISTENER__ - MiniAudio spatialization listener
