@@ -354,6 +354,54 @@ group "Loading sounds"
 	]
 ]
 --test-- "loading a missing file is refused" [error? try [audio/load %assets/no-such-file.wav]]
+
+;;-- encoded audio held in a binary -----------------------------------------
+data: read %assets/zblunk_02.wav
+--test-- "load accepts a binary" [
+	all [
+		handle? mem-sound: audio/load data
+		mem-sound/frames > 0
+		mem-sound/duration > 0:0:0
+	]
+]
+--test-- "the binary is kept as the sound's source" [
+	binary? mem-sound/source
+]
+;; The resource manager and the decoder both use the data in place, so the
+;; series is locked - it may still be read and poked, but not resized.
+--test-- "a loaded binary is locked against resizing" [
+	all [
+		error? try [append data #{00}]
+		error? try [clear data]
+		binary? copy data ;; a copy is unaffected
+	]
+]
+--test-- "the same binary can back two sounds" [
+	;; the second load finds the data already registered - the manager just
+	;; counts another reference to it
+	other: audio/load data
+	all [
+		handle? other
+		other/frames = mem-sound/frames
+		binary? other/source
+	]
+]
+--test-- "releasing one of them leaves the other usable" [
+	release other
+	mem-sound/frames > 0
+]
+--test-- "an empty binary is refused" [error? try [audio/load #{}]]
+--test-- "a binary of noise is refused" [
+	error? try [audio/load #{DEADBEEFDEADBEEFDEADBEEF}]
+]
+--test-- "play does not accept a binary" [
+	;; deliberate - encoded data goes through `load`, then the handle plays
+	all [
+		error? try [audio/play data]
+		handle? audio/play mem-sound
+	]
+]
+
 --test-- "device lists the loaded sounds" [
 	all [
 		block? device/resources

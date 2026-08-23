@@ -155,8 +155,8 @@ Initialize a playback device
 * `word` `[word!]` The function's name
 
 #### `load` `:sound`
-Loads a file and returns sound's handle
-* `sound` `[file!]`
+Loads a file or encoded audio data and returns sound's handle. A binary is used in place and so is locked against resizing for good - use `copy` if a mutable version is needed.
+* `sound` `[file! binary!]`
 * `/group` Group of sounds which have their own effect processing and volume control
 * `node` `[handle!]` ma-group handle
 
@@ -283,10 +283,10 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/gain-db          decimal!            [integer! decimal!]           "Sound volume in decibels (the same value as volume, logarithmic)"
 /fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
-/gain-db          decimal!            [integer! decimal!]           "Volume as an amplification factor in decibels"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
-/pan-mode         word!               word!                         "Balance (default) or pan"
+/pan-mode         word!               word!                         "balance (default, attenuates one side) or pan (moves the sound across)"
 /pitch            decimal!            decimal!                      "Sound pitch"
 /position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
 /cursor           integer!            [integer! time!]              "Sound playback position in PCM frames"
@@ -303,7 +303,7 @@ Return true if sound ended
 /x                decimal!            [integer! decimal!]           "Sound X position"
 /y                decimal!            [integer! decimal!]           "Sound Y position"
 /z                decimal!            [integer! decimal!]           "Sound Z position"
-/source           [file! handle!]     none                          "Sound source as a loaded file or data source node"
+/source           [file! binary! handle!]none                          "Sound source as a loaded file, encoded data or a data source node"
 /rolloff          decimal!            [integer! decimal!]           "How quickly the sound gets quieter with distance"
 /min-distance     decimal!            [integer! decimal!]           "Distance below which no attenuation is applied"
 /max-distance     decimal!            [integer! decimal!]           "Distance above which no further attenuation is applied"
@@ -321,10 +321,10 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/gain-db          decimal!            [integer! decimal!]           "Sound volume in decibels (the same value as volume, logarithmic)"
 /fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
-/gain-db          decimal!            [integer! decimal!]           "Volume as an amplification factor in decibels"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
-/pan-mode         word!               word!                         "Balance (default) or pan"
+/pan-mode         word!               word!                         "balance (default, attenuates one side) or pan (moves the sound across)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"
 /time             time!               none                          "Time the group has been playing"

@@ -141,7 +141,7 @@ handles: [
 		x              decimal!  [integer! decimal!] "Sound X position"
 		y              decimal!  [integer! decimal!] "Sound Y position"
 		z              decimal!  [integer! decimal!] "Sound Z position"
-		source        [file! handle!] none           "Sound source as a loaded file or data source node"
+		source        [file! binary! handle!] none   "Sound source as a loaded file, encoded data or a data source node"
 		rolloff        decimal!  [integer! decimal!] "How quickly the sound gets quieter with distance"
 		min-distance   decimal!  [integer! decimal!] "Distance below which no attenuation is applied"
 		max-distance   decimal!  [integer! decimal!] "Distance above which no further attenuation is applied"
@@ -241,8 +241,8 @@ commands: [
 	]
 
 	load:  [
-		"Loads a file and returns sound's handle"
-		sound [file!]
+		{Loads a file or encoded audio data and returns sound's handle. A binary is used in place and so is locked against resizing for good - use `copy` if a mutable version is needed.}
+		sound [file! binary!]
 		/group "Group of sounds which have their own effect processing and volume control"
 		 node [handle!] "ma-group handle"
 	]

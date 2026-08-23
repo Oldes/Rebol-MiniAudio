@@ -103,6 +103,46 @@ static ma_result sound_init_from_arg(RXIARG *file, REBSER **out_ser, ma_uint32 f
 	return ma_sound_init_from_file(pEngine->engine, (const char*)SERIES_DATA(ser), 0, pGroup, NULL, pSound);
 }
 
+// Builds the resource manager name under which a binary is registered.
+// Derived from the series pointer and index, so loading the same binary
+// twice resolves to the same name and the manager just bumps its refcount.
+static void memory_source_name(RXIARG *bin, char *out, size_t size) {
+	snprintf(out, size, "mem://%p+%u",
+		(void*)bin->series, (unsigned int)bin->index);
+}
+
+// Initializes a sound from encoded audio held in a Rebol binary.
+//
+// Neither the resource manager nor the decoder copies the data, so the
+// series must outlive the sound: the caller keeps the binary in the sound
+// handle's block (GC) and the series is locked here so that append, insert
+// and clear raise an error instead of reallocating under the audio thread.
+// The lock is never removed - `copy` gives back a mutable binary.
+static ma_result sound_init_from_binary(RXIARG *bin, ma_uint32 flags, ma_sound_group* pGroup, ma_sound* pSound) {
+	char name[64];
+	REBSER *ser = (REBSER*)bin->series;
+	REBCNT  len;
+	ma_result result;
+
+	if (!ser) return MA_INVALID_ARGS;
+	len = SERIES_TAIL(ser);
+	if (bin->index >= len) return MA_INVALID_ARGS; // nothing to decode
+	len -= bin->index;
+
+	memory_source_name(bin, name, sizeof(name));
+	result = ma_resource_manager_register_encoded_data(
+		&gResourceManager, name, SERIES_DATA(ser) + bin->index, (size_t)len);
+	if (result != MA_SUCCESS) return result;
+
+	LOCK_SERIES(ser);
+
+	result = ma_sound_init_from_file(pEngine->engine, name, flags, pGroup, NULL, pSound);
+	if (result != MA_SUCCESS) {
+		ma_resource_manager_unregister_data(&gResourceManager, name);
+	}
+	return result;
+}
+
 
 static void onSoundEnd(void* hob, ma_sound* pSound) {
 	trace("sound end ");
@@ -409,6 +449,15 @@ int MASound_free(void* hndl) {
 	UNMARK_HOB(hob);
 	ma_sound_uninit(sound);
 	if (hob->series) {
+		RXIARG arg;
+		// A sound loaded from a binary keeps it as its source - drop the
+		// resource manager's reference to it. The manager counts them, so
+		// the data stays registered while other sounds still use it.
+		if (RXT_BINARY == RL_GET_VALUE(hob->series, 0, &arg)) {
+			char name[64];
+			memory_source_name(&arg, name, sizeof(name));
+			ma_resource_manager_unregister_data(&gResourceManager, name);
+		}
 		RESET_SERIES(hob->series);
 		hob->series = NULL;
 	}
@@ -1575,15 +1624,22 @@ COMMAND cmd_miniaudio_load(RXIFRM *frm, void *ctx) {
 	if (hob == NULL) return RXR_NONE;
 	sound = (ma_sound*)hob->data;
 
-	result = sound_init_from_arg(&RXA_ARG(frm, 1), &ser, 0, group, NULL, sound);	
-	if (result != MA_SUCCESS) RETURN_ERROR("Failed to initialize the sound from a file.");
+	if (RXA_TYPE(frm, 1) == RXT_BINARY) {
+		result = sound_init_from_binary(&RXA_ARG(frm, 1), 0, group, sound);
+		if (result != MA_SUCCESS) RETURN_ERROR("Failed to initialize the sound from a binary.");
 
-
-	// store the full path of the source file in the handle
-	hob->series = RL_MAKE_BLOCK(1);
-	RXA_SERIES(frm, 1) = ser;
-	RXA_INDEX(frm, 1) = 0;
-	RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_STRING);
+		// keep the binary itself as the source - it must outlive the sound
+		hob->series = RL_MAKE_BLOCK(1);
+		RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_BINARY);
+	} else {
+		result = sound_init_from_arg(&RXA_ARG(frm, 1), &ser, 0, group, NULL, sound);	
+		if (result != MA_SUCCESS) RETURN_ERROR("Failed to initialize the sound from a file.");
+		// store the full path of the source file in the handle
+		hob->series = RL_MAKE_BLOCK(1);
+		RXA_SERIES(frm, 1) = ser;
+		RXA_INDEX(frm, 1) = 0;
+		RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXT_STRING);
+	}
 
 	RXA_HANDLE(frm, 1)       = hob;
 	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;
