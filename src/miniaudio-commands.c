@@ -180,6 +180,111 @@ int MAEngine_free(void* hndl) {
 	context->device = NULL;
 	return 0;
 }
+
+//== ma-listener =============================================================//
+// A listener belongs to an engine and has no lifetime of its own, so the
+// handle only refers to it - releasing a listener handle frees nothing.
+
+int MAListener_free(void* hndl) {
+	return 0;
+}
+
+// Resolves the engine behind a listener handle, or NULL if the engine has
+// already been released.
+static ma_engine* listener_engine(REBHOB *hob) {
+	MAListener *listener = (MAListener*)hob->data;
+	MAContext  *context;
+	if (!listener->engine || !IS_USED_HOB(listener->engine)) return NULL;
+	context = (MAContext*)listener->engine->data;
+	return context ? context->engine : NULL;
+}
+
+// Makes a handle for one listener of the given engine handle.
+REBHOB* MAListener_make(REBHOB *engine_hob, ma_uint32 index) {
+	REBHOB *hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAListener);
+	MAListener *listener;
+	if (!hob) return NULL;
+	listener = (MAListener*)hob->data;
+	listener->engine = engine_hob;
+	listener->index  = index;
+	return hob;
+}
+
+int MAListener_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	MAListener *listener = (MAListener*)hob->data;
+	ma_engine  *engine = listener_engine(hob);
+	ma_vec3f    pos;
+	if (!engine) return PE_BAD_SELECT; // the engine is gone
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_INDEX:
+		*type = RXT_INTEGER;
+		arg->int64 = listener->index;
+		break;
+	case W_MINIAUDIO_ARG_ENABLED:
+		*type = RXT_LOGIC;
+		arg->int32a = ma_engine_listener_is_enabled(engine, listener->index);
+		break;
+	case W_MINIAUDIO_ARG_POSITION:
+		*type = RXT_PAIR;
+		pos = ma_engine_listener_get_position(engine, listener->index);
+		arg->dec32a = pos.x;
+		arg->dec32b = pos.y;
+		break;
+	case W_MINIAUDIO_ARG_X:
+	case W_MINIAUDIO_ARG_Y:
+	case W_MINIAUDIO_ARG_Z:
+		*type = RXT_DECIMAL;
+		pos = ma_engine_listener_get_position(engine, listener->index);
+		arg->dec64 =
+			word == W_MINIAUDIO_ARG_X ? pos.x :
+			word == W_MINIAUDIO_ARG_Y ? pos.y : pos.z;
+		break;
+	default:
+		return PE_BAD_SELECT;
+	}
+	return PE_USE;
+}
+
+int MAListener_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	MAListener *listener = (MAListener*)hob->data;
+	ma_engine  *engine = listener_engine(hob);
+	ma_vec3f    pos;
+	if (!engine) return PE_BAD_SET;
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_ENABLED:
+		if (*type != RXT_LOGIC) return PE_BAD_SET_TYPE;
+		ma_engine_listener_set_enabled(engine, listener->index, arg->int32a);
+		break;
+	case W_MINIAUDIO_ARG_POSITION:
+		if (*type != RXT_PAIR) return PE_BAD_SET_TYPE;
+		// a pair carries only two components - keep the current z
+		pos = ma_engine_listener_get_position(engine, listener->index);
+		ma_engine_listener_set_position(engine, listener->index, arg->dec32a, arg->dec32b, pos.z);
+		break;
+	case W_MINIAUDIO_ARG_X:
+	case W_MINIAUDIO_ARG_Y:
+	case W_MINIAUDIO_ARG_Z:
+		if (*type == RXT_INTEGER) arg->dec64 = (double)arg->int64;
+		else if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
+		// miniaudio only sets the whole vector, so read-modify-write
+		pos = ma_engine_listener_get_position(engine, listener->index);
+		switch (word) {
+		case W_MINIAUDIO_ARG_X: pos.x = (float)arg->dec64; break;
+		case W_MINIAUDIO_ARG_Y: pos.y = (float)arg->dec64; break;
+		case W_MINIAUDIO_ARG_Z: pos.z = (float)arg->dec64; break;
+		}
+		ma_engine_listener_set_position(engine, listener->index, pos.x, pos.y, pos.z);
+		break;
+	default:
+		return PE_BAD_SET;
+	}
+	return PE_OK;
+}
+
 int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	MAContext* context = (MAContext*)hob->data;
 	ma_engine* engine = context->engine;
@@ -202,6 +307,34 @@ int MAEngine_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_TIME;
 		arg->int64 = ma_engine_get_time_in_milliseconds(engine) * 1000000;
 		break;
+	case W_MINIAUDIO_ARG_LISTENER: {
+		REBHOB *lhob = MAListener_make(hob, 0);
+		if (!lhob) return PE_BAD_SELECT;
+		*type = RXT_HANDLE;
+		arg->handle.hob   = lhob;
+		arg->handle.type  = lhob->sym;
+		arg->handle.flags = lhob->flags;
+		break;
+	}
+	case W_MINIAUDIO_ARG_LISTENERS: {
+		REBSER *blk;
+		RXIARG  val;
+		ma_uint32 i, count = ma_engine_get_listener_count(engine);
+		blk = RL_MAKE_BLOCK(count);
+		if (!blk) return PE_BAD_SELECT;
+		for (i = 0; i < count; i++) {
+			REBHOB *lhob = MAListener_make(hob, i);
+			if (!lhob) return PE_BAD_SELECT;
+			val.handle.hob   = lhob;
+			val.handle.type  = lhob->sym;
+			val.handle.flags = lhob->flags;
+			RL_SET_VALUE(blk, i, val, RXT_HANDLE);
+		}
+		*type = RXT_BLOCK;
+		arg->series = blk;
+		arg->index  = 0;
+		break;
+	}
 	case W_MINIAUDIO_ARG_CHANNELS:
 		*type = RXT_INTEGER;
 		arg->uint64 = ma_engine_get_channels(engine);

@@ -350,6 +350,18 @@ Return true if sound ended
 /gain-db          decimal!            [integer! decimal!]           "The amplification factor in decibels"
 ```
 
+#### __MA-LISTENER__ - MiniAudio spatialization listener
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/index            integer!            none                          "Index of the listener in its engine"
+/enabled          logic!              logic!                        "Whether the listener is enabled"
+/position         pair!               pair!                         "Listener position (x and y)"
+/x                decimal!            [integer! decimal!]           "Listener X position"
+/y                decimal!            [integer! decimal!]           "Listener Y position"
+/z                decimal!            [integer! decimal!]           "Listener Z position"
+```
+
 #### __MA-NOISE__ - MiniAudio noise generator
 
 ```rebol

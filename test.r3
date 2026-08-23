@@ -259,7 +259,66 @@ unless handle? :device [
 	sample-rate [integer!]
 	gain-db     [decimal!]
 	resources   [block!]
+	listener    [handle!]
+	listeners   [block!]
 ]
+
+listener: device/listener
+--test-- "engine reports its listeners" [
+	all [
+		handle? :listener
+		block? device/listeners
+		1 <= length? device/listeners
+		handle? first device/listeners
+	]
+]
+--reads-- "ma-listener" listener [
+	index    [integer!]
+	enabled  [logic!]
+	position [pair!]
+	x        [decimal!]
+	y        [decimal!]
+	z        [decimal!]
+]
+--test-- "the first listener has index 0" [listener/index = 0]
+--test-- "listener is enabled by default" [listener/enabled]
+--test-- "listener position round trip" [
+	listener/x: 1.0 listener/y: 2.0 listener/z: 3.0
+	all [
+		about? listener/x 1.0 0.001
+		about? listener/y 2.0 0.001
+		about? listener/z 3.0 0.001
+		about? listener/position/x 1.0 0.001
+		about? listener/position/y 2.0 0.001
+	]
+]
+--test-- "listener position accepts a pair" [
+	listener/position: 4x5
+	all [about? listener/x 4.0 0.001  about? listener/y 5.0 0.001]
+]
+--test-- "setting one axis keeps the others" [
+	listener/position: 0x0
+	listener/z: 7.0
+	listener/y: 8.0
+	all [about? listener/z 7.0 0.001  about? listener/y 8.0 0.001]
+]
+--test-- "listener can be disabled" [
+	listener/enabled: false
+	all [not listener/enabled  true = (listener/enabled: true)]
+]
+--test-- "two handles address the same listener" [
+	other: device/listener
+	other/x: 9.0
+	about? listener/x 9.0 0.001
+]
+--rejects-- "ma-listener/enabled with a bad type" [listener/enabled: 1]
+--rejects-- "ma-listener/index write" [listener/index: 1]
+--rejects-- "ma-engine/listener write" [device/listener: none]
+
+;; Back to the origin - a listener left metres away from the sounds would
+;; attenuate the audible playback section into near silence.
+listener/position: 0x0
+listener/z: 0.0
 
 --test-- "engine has a sane sample rate" [device/sample-rate > 0]
 --test-- "engine has at least one channel" [device/channels > 0]
@@ -328,7 +387,7 @@ group "Loading sounds"
 	min-gain       [decimal!]
 	max-gain       [decimal!]
 	doppler-factor [decimal!]
-	attenuation    [word!]
+	attenuation    [word! none!]
 	positioning    [word!]
 	outputs     [integer!]
 	source      [string! handle! none!]

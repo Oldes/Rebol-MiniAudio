@@ -41,6 +41,14 @@ c-header: {
 #define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 #endif
 
+// A listener is not a standalone miniaudio object - it lives inside the
+// engine. The handle therefore keeps the OWNING ENGINE'S HOB (so a released
+// engine can be detected) together with the listener's index.
+typedef struct MAListener {
+	REBHOB*   engine;
+	ma_uint32 index;
+} MAListener;
+
 typedef struct MAContext {
 	ma_engine* engine;
 	ma_device* device;
@@ -53,6 +61,7 @@ extern REBCNT Handle_MANoise;
 extern REBCNT Handle_MAWaveform;
 extern REBCNT Handle_MADelay;
 extern REBCNT Handle_MAGroup;
+extern REBCNT Handle_MAListener;
 }
 
 ;; ---------------------------------------------------------------------------
@@ -67,7 +76,7 @@ words: [
 		spatialize is-looping is-playing at-end source start stop
 		x y z outputs output resources channels gain-db
 		rolloff min-distance max-distance min-gain max-gain
-		doppler-factor attenuation positioning
+		doppler-factor attenuation positioning listener listeners enabled index
 		amplitude frequency format type delay decay dry wet
 	]
 	;; @@ Order is important - the C side indexes this list by the
@@ -169,6 +178,18 @@ handles: [
 		channels       integer!   none               "Number of output channels"
 		sample-rate    integer!   none               "Ouput device sample rate per second"
 		gain-db        decimal!  [integer! decimal!] "The amplification factor in decibels"
+		listener       handle!    none               "The first listener as a ma-listener handle"
+		listeners      block!     none               "All listeners of the engine as ma-listener handles"
+	]
+	ma-listener: [
+		"MiniAudio spatialization listener"
+		;NAME          GET       SET                 DESCRIPTION
+		index          integer!   none               "Index of the listener in its engine"
+		enabled        logic!     logic!             "Whether the listener is enabled"
+		position       pair!      pair!              "Listener position (x and y)"
+		x              decimal!  [integer! decimal!] "Listener X position"
+		y              decimal!  [integer! decimal!] "Listener Y position"
+		z              decimal!  [integer! decimal!] "Listener Z position"
 	]
 	ma-noise: [
 		"MiniAudio noise generator"
