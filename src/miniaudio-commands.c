@@ -444,6 +444,10 @@ int MASound_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_pan(sound);
 		break;
+	case W_MINIAUDIO_ARG_PAN_MODE:
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_BALANCE + ma_sound_get_pan_mode(sound)];
+		break;
 	case W_MINIAUDIO_ARG_PITCH:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_get_pitch(sound);
@@ -625,6 +629,14 @@ int MASound_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_set_pan(sound, (float)arg->dec64);
 		break;
+	case W_MINIAUDIO_ARG_PAN_MODE: {
+		u32 w;
+		if (*type != RXT_WORD) return PE_BAD_SET_TYPE;
+		w = RL_FIND_WORD(Miniaudio_type_words, (REBCNT)arg->int64);
+		if (w < W_MINIAUDIO_TYPE_BALANCE || w > W_MINIAUDIO_TYPE_PAN) return PE_BAD_SET;
+		ma_sound_set_pan_mode(sound, (ma_pan_mode)(w - W_MINIAUDIO_TYPE_BALANCE));
+		break;
+	}
 	case W_MINIAUDIO_ARG_PITCH:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_set_pitch(sound, (float)arg->dec64);
@@ -797,6 +809,10 @@ int MAGroup_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_group_get_pan(group);
 		break;
+	case W_MINIAUDIO_ARG_PAN_MODE:
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_BALANCE + ma_sound_group_get_pan_mode(group)];
+		break;
 	case W_MINIAUDIO_ARG_PITCH:
 		*type = RXT_DECIMAL;
 		arg->dec64 = ma_sound_group_get_pitch(group);
@@ -890,6 +906,14 @@ int MAGroup_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_group_set_pan(group, (float)arg->dec64);
 		break;
+	case W_MINIAUDIO_ARG_PAN_MODE: {
+		u32 w;
+		if (*type != RXT_WORD) return PE_BAD_SET_TYPE;
+		w = RL_FIND_WORD(Miniaudio_type_words, (REBCNT)arg->int64);
+		if (w < W_MINIAUDIO_TYPE_BALANCE || w > W_MINIAUDIO_TYPE_PAN) return PE_BAD_SET;
+		ma_sound_group_set_pan_mode(group, (ma_pan_mode)(w - W_MINIAUDIO_TYPE_BALANCE));
+		break;
+	}
 	case W_MINIAUDIO_ARG_PITCH:
 		if (*type != RXT_DECIMAL) return PE_BAD_SET_TYPE;
 		ma_sound_group_set_pitch(group, (float)arg->dec64);

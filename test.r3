@@ -366,6 +366,7 @@ group "Loading sounds"
 	fade-volume [decimal!]
 	gain-db     [decimal!]
 	pan         [decimal!]
+	pan-mode    [word!]
 	pitch       [decimal!]
 	position    [pair!]
 	cursor      [integer!]
@@ -471,6 +472,15 @@ foreach word [inverse linear exponential][
 ]
 sound/volume: 1.0
 --test-- "sound pan round trip"    [sound/pan: -1.0     -1.0 = round/to sound/pan 0.01]
+--test-- "pan mode defaults to balance" [sound/pan-mode = 'balance]
+foreach word [pan balance][
+	--test-- ajoin ["sound pan-mode " word] [
+		sound/pan-mode: word
+		word = sound/pan-mode
+	]
+]
+--test-- "an unknown pan mode is refused" [error? try [sound/pan-mode: 'stereo]]
+--test-- "pan-mode is refused a non-word" [error? try [sound/pan-mode: 1]]
 --test-- "sound pitch round trip"  [sound/pitch: 1.5     1.5 = round/to sound/pitch 0.01]
 --test-- "sound looping round trip" [
 	sound/is-looping: true
@@ -569,6 +579,7 @@ foreach [word value] reduce [
 	fade-volume [decimal!]
 	gain-db     [decimal!]
 	pan         [decimal!]
+	pan-mode    [word!]
 	pitch       [decimal!]
 	position    [pair!]
 	time        [time!]
@@ -588,6 +599,10 @@ foreach [word value] reduce [
 		handle? grouped: audio/load/group %assets/drumloop.wav bus
 		1 = length? bus/resources
 	]
+]
+--test-- "group pan-mode round trip" [
+	bus/pan-mode: 'pan
+	all ['pan = bus/pan-mode  'balance = (bus/pan-mode: 'balance)]
 ]
 --test-- "group gain-db round trip" [
 	bus/gain-db: -6.0

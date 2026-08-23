@@ -77,7 +77,7 @@ words: [
 		x y z outputs output resources channels gain-db
 		rolloff min-distance max-distance min-gain max-gain
 		doppler-factor attenuation positioning listener listeners enabled index
-		amplitude frequency format type delay decay dry wet
+		pan-mode amplitude frequency format type delay decay dry wet
 	]
 	;; @@ Order is important - the C side indexes this list by the
 	;; matching miniaudio enum value (ma_noise_type, ma_waveform_type,
@@ -99,6 +99,9 @@ words: [
 		;- positioning modes (ma_positioning order)
 		absolute
 		relative
+		;- pan modes (ma_pan_mode order)
+		balance
+		pan
 		;- format types
 		;; @@ must follow the ma_format enum, `unknown` included, because
 		;; the C side indexes this from W_MINIAUDIO_TYPE_UNKNOWN
@@ -121,6 +124,7 @@ handles: [
 		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
 		gain-db        decimal!  [integer! decimal!] "Volume as an amplification factor in decibels"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
+		pan-mode       word!      word!              "Balance (default) or pan"
 		pitch          decimal!   decimal!           "Sound pitch"
 		position       pair!      pair!              "Sound position (x and y for now) relative to the listener"
 		cursor         integer!  [integer! time!]    "Sound playback position in PCM frames"
@@ -156,6 +160,7 @@ handles: [
 		fade-volume    decimal!   none               "Volume of a running fade, 1.0 when no fade is active"
 		gain-db        decimal!  [integer! decimal!] "Volume as an amplification factor in decibels"
 		pan            decimal!   decimal!           "Stereo panning (from -1.0 to 1.0)"
+		pan-mode       word!      word!              "Balance (default) or pan"
 		pitch          decimal!   decimal!           "Sound group pitch"
 		position       pair!      pair!              "Sound group position (x and y for now) relative to the listener"
 		time           time!      none               "Time the group has been playing"
