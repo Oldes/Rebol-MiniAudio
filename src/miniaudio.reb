@@ -63,6 +63,7 @@ extern REBCNT Handle_MADelay;
 extern REBCNT Handle_MAGroup;
 extern REBCNT Handle_MAListener;
 extern REBCNT Handle_MABuffer;
+extern REBCNT Handle_MAStream;
 }
 
 ;; ---------------------------------------------------------------------------
@@ -223,6 +224,17 @@ handles: [
 		duration       time!      none               "Length as time"
 		cursor         integer!  [integer! time!]    "Playback position in PCM frames"
 	]
+	ma-stream: [
+		"MiniAudio ring buffer of PCM samples, written while it plays"
+		;NAME          GET       SET                 DESCRIPTION
+		format         word!      none               "u8, s16, s24, s32 or f32"
+		channels       integer!   none               "Number of interleaved channels"
+		sample-rate    integer!   integer!           "Number of samples per second"
+		frames         integer!   none               "Capacity in PCM frames"
+		duration       time!      none               "Capacity as time"
+		pending        integer!   none               "Frames written but not played yet"
+		available      integer!   none               "Frames which can be written right now"
+	]
 	ma-delay: [
 		"MiniAudio delay node"
 		delay          integer!  none                "PCM frames"
@@ -337,6 +349,21 @@ commands: [
 		 hz    [integer!]
 		/format   "Sample format of a binary (default is 2 = signed 16bit integer)"
 		 frm   [integer!] "Value betweem 1 - 5"
+	]
+	make-stream-node: [
+		{Creates a data source node fed with samples while it plays, for audio generated as it is heard. Use `write` to keep it filled; a stream which runs dry plays silence rather than ending, so the sound keeps going and only the gap is heard.}
+		frames [integer! time!] "Capacity of the ring buffer (PCM frames or time)"
+		/channels "Number of interleaved channels (default is 1)"
+		 count [integer!]
+		/rate     "Samples per second (default is the engine's, else 48000)"
+		 hz    [integer!]
+		/format   "The sample format (default is 2 = signed 16bit integer)"
+		 frm   [integer!] "Value betweem 1 - 5"
+	]
+	write: [
+		{Writes PCM samples into a stream node. Returns the number of frames written, which is less than the input when the buffer is full. A vector's element type must match the stream's sample format.}
+		stream [handle!] "ma-stream handle"
+		data [vector! binary!] "Interleaved PCM samples"
 	]
 	make-group-node: [
 		"Creates a sound group node"

@@ -137,7 +137,7 @@ noise: sound: utf-sound: wave: delay: bus: drums: tone: device: none
 foreach name [
 	version get-devices init-playback load play pause start stop fade seek
 	make-noise-node make-waveform-node make-delay-node make-group-node
-	make-buffer-node
+	make-buffer-node make-stream-node write
 	volume volume? pan pan? pitch pitch? looping looping? end?
 ][
 	--test-- ajoin ["command " name] compose [command? get in audio (to lit-word! name)]
@@ -319,6 +319,19 @@ foreach spec [
 	b: audio/make-buffer-node #{0000 0100 0200 0300}
 	all [b/format = 's16  b/frames = 4]
 ]
+--test-- "a skipped binary starts where it points" [
+	;; a binary indexes bytes, so the offset must not be scaled by the
+	;; sample width the way a vector's index is
+	b: audio/make-buffer-node skip #{0000 0100 0200 0300} 4
+	b/frames = 2
+]
+--test-- "a skipped vector starts where it points" [
+	b: audio/make-buffer-node skip make vector! [int16! 64] 32
+	b/frames = 32
+]
+--test-- "a negative channel count is refused" [
+	error? try [audio/make-buffer-node/channels make vector! [int16! 8] -1]
+]
 --test-- "channels divide the frame count" [
 	b: audio/make-buffer-node/channels make vector! [int16! 64] 2
 	all [b/channels = 2  b/frames = 32]
@@ -336,6 +349,96 @@ foreach spec [
 --test-- "zero channels are refused" [
 	error? try [audio/make-buffer-node/channels make vector! [int16! 8] 0]
 ]
+
+;;=============================================================================
+group "Stream of generated samples (needs no engine)"
+;;=============================================================================
+
+--test-- "make-stream-node" [handle? stream: audio/make-stream-node 1000]
+--reads-- "ma-stream" stream [
+	format      [word!]
+	channels    [integer!]
+	sample-rate [integer!]
+	frames      [integer!]
+	duration    [time!]
+	pending     [integer!]
+	available   [integer!]
+]
+--test-- "a fresh stream is empty and fully writable" [
+	all [
+		stream/format   = 's16   ;; the documented default
+		stream/channels = 1
+		stream/frames  >= 1000
+		stream/pending  = 0
+		stream/available = stream/frames
+	]
+]
+--test-- "stream capacity can be given as time" [
+	s: audio/make-stream-node/rate 0:0:0.5 44100
+	all [s/frames >= 22050  about? to decimal! s/duration 0.5 0.01]
+]
+--test-- "stream sample-rate round trip" [
+	s: audio/make-stream-node/rate 1000 22050
+	all [
+		s/sample-rate = 22050
+		(s/sample-rate: 44100  s/sample-rate = 44100)
+	]
+]
+--rejects-- "ma-stream/frames write" [stream/frames: 10]
+--rejects-- "ma-stream/nonsense" [stream/nonsense]
+
+--test-- "write returns the number of frames written" [
+	chunk: make vector! [int16! 256]
+	all [
+		256 = audio/write stream chunk
+		stream/pending   = 256
+		stream/available = (stream/frames - 256)
+	]
+]
+--test-- "writes accumulate" [
+	audio/write stream make vector! [int16! 256]
+	stream/pending = 512
+]
+--test-- "a write is truncated when the buffer fills" [
+	s: audio/make-stream-node 100
+	all [
+		100 = audio/write s make vector! [int16! 400]
+		s/available = 0
+		;; and nothing more fits
+		0 = audio/write s make vector! [int16! 8]
+	]
+]
+--test-- "an empty write is not an error" [
+	0 = audio/write stream make vector! [int16! 0]
+]
+--test-- "a binary can be written too" [
+	s: audio/make-stream-node 100
+	4 = audio/write s #{0000 0100 0200 0300}
+]
+--test-- "the vector type must match the stream's format" [
+	s: audio/make-stream-node/format 100 audio/format_f32
+	all [
+		error? try [audio/write s make vector! [int16! 8]]
+		8 = audio/write s make vector! [float32! 8]
+	]
+]
+--test-- "an unsupported vector type is refused" [
+	error? try [audio/write stream make vector! [float64! 8]]
+]
+--test-- "write refuses a handle which is not a stream" [
+	error? try [audio/write noise make vector! [int16! 8]]
+]
+--test-- "channels divide the written frames" [
+	s: audio/make-stream-node/channels 100 2
+	all [s/channels = 2  32 = audio/write s make vector! [int16! 64]]
+]
+--test-- "zero channels are refused" [
+	error? try [audio/make-stream-node/channels 100 0]
+]
+--test-- "a negative channel count is refused" [
+	error? try [audio/make-stream-node/channels 100 -1]
+]
+--test-- "a zero capacity is refused" [error? try [audio/make-stream-node 0]]
 
 unless playback-index [summary]
 
@@ -899,6 +1002,42 @@ either quick? [
 	]
 	wait 1.2
 	--test-- "the buffer advanced while playing" [buf/cursor > 0]
+
+	;; A stream fed from Rebol while the audio thread drains it.
+	--test-- "a stream can be played while it is being written" [
+		rate:   device/sample-rate
+		stream: audio/make-stream-node 0:0:0.5
+		chunk:  make vector! reduce ['int16! 2048]
+		phase:  0.0
+		;; prime it before starting, so the first read is not silence
+		repeat i 2048 [
+			chunk/:i: to integer! 8000 * sine/radians phase
+			phase: phase + (2 * pi * 330 / rate)
+		]
+		audio/write stream chunk
+		handle? hum: audio/play stream
+	]
+	if handle? :hum [
+		--test-- "the stream drains as it plays" [
+			;; keep it fed for a second, topping up whenever there is room
+			start-pending: stream/pending
+			loop 60 [
+				if stream/available >= 2048 [
+					repeat i 2048 [
+						chunk/:i: to integer! 8000 * sine/radians phase
+						phase: phase + (2 * pi * 330 / rate)
+					]
+					audio/write stream chunk
+				]
+				wait 0.01
+			]
+			all [hum/is-playing  stream/pending > 0]
+		]
+		;; A stream has no end, so it must be stopped explicitly.
+		audio/stop/fade hum 0:0:0.3
+		wait 0.5
+		--test-- "a stopped stream is no longer playing" [not hum/is-playing]
+	]
 
 	;; A data source node played as a sound, modulated while it plays.
 	--test-- "a waveform node can be played" [

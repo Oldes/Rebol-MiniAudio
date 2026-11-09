@@ -36,6 +36,7 @@ REBCNT Handle_MADelay    = 0;
 REBCNT Handle_MAGroup    = 0;
 REBCNT Handle_MAListener = 0;
 REBCNT Handle_MABuffer   = 0;
+REBCNT Handle_MAStream   = 0;
 
 
 // One-time setup, called from the generated `_init` command once the word
@@ -74,6 +75,15 @@ int Miniaudio_Init(void) {
 	spec.get_path  = MABuffer_get_path;
 	spec.set_path  = MABuffer_set_path;
 	Handle_MABuffer = RL_REGISTER_HANDLE_SPEC(cb_cast("ma-buffer"), &spec);
+
+	// The ring buffer owns its memory and keeps no series, so the free
+	// callback gets the data pointer rather than the HOB.
+	spec.size      = sizeof(ma_pcm_rb);
+	spec.flags     = 0;
+	spec.free      = MAStream_free;
+	spec.get_path  = MAStream_get_path;
+	spec.set_path  = MAStream_set_path;
+	Handle_MAStream = RL_REGISTER_HANDLE_SPEC(cb_cast("ma-stream"), &spec);
 
 	spec.size      = sizeof(ma_noise);
 	spec.flags     = 0;

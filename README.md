@@ -8,6 +8,15 @@
 
 [MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.22.5 and higher)
 
+Plays sounds - from files, from memory, or from samples computed in Rebol -
+on its own audio thread, so the interpreter stays free while they play.
+Sounds can be grouped, faded, routed through effects, placed in 3D space and
+generated as they are heard.
+
+Everything is reached through _handles_ whose fields are read and written as
+paths: `sound/volume`, `sound/is-playing`, `device/sample-rate`. The full list
+is in the reference at the bottom of this file.
+
 ## Usage
 ```rebol
 audio: import 'miniaudio
@@ -46,6 +55,19 @@ audio/play :device/resources/1
 wait 1
 ```
 
+#### Playing a sound held in memory
+Encoded audio does not have to come from a file - a `binary!` works too, so a
+sound may be played straight out of a zip, a database or a HTTP response.
+```rebol
+data:  read %assets/zblunk_02.wav
+sound: audio/load data
+audio/play sound
+```
+The data is decoded where it lies rather than copied, so the series is locked
+against resizing for as long as the session lasts - `append data #{00}` will
+error. Use `copy data` if a mutable version is needed. Note that `play` itself
+takes a file or a handle: encoded data goes through `load` first.
+
 #### Using a data-source node...
 ```rebol
 a: 0
@@ -70,6 +92,104 @@ with audio [
         wait 0.005                                                                                            
     ]
 ]
+```
+
+#### Playing your own samples
+A vector of samples can be played directly. Its element type decides the
+sample format - `int16!` is `s16`, `float32!` is `f32`, `uint8!` is `u8` and
+`int32!` is `s32` - so there is nothing else to declare.
+```rebol
+;; one second of a 440 Hz sine wave...
+rate:    44100
+samples: make vector! reduce ['int16! rate]
+repeat i rate [
+    samples/:i: to integer! 12000 * sine/radians (2 * pi * 440 * (i - 1) / rate)
+]
+
+buffer: audio/make-buffer-node/rate samples rate
+print ["buffer:" buffer/frames "frames," buffer/duration]
+audio/play buffer
+```
+Like a loaded binary, the samples are used in place and the vector is locked
+against resizing. Individual samples may still be rewritten, so a playing
+buffer can be reshaped under the playhead.
+
+A `binary!` of raw sample bytes works as well, but then the format has to be
+given: `audio/make-buffer-node/format data audio/format_s16`.
+
+#### Generating audio as it plays
+A buffer is a fixed block of samples. For audio which is computed as it is
+heard, a _stream_ is a ring buffer: Rebol writes into one end while the audio
+thread reads from the other.
+```rebol
+rate:   device/sample-rate
+stream: audio/make-stream-node 0:0:0.5   ;; half a second of slack
+chunk:  make vector! [int16! 2048]
+phase:  0.0
+
+fill: does [
+    repeat i 2048 [
+        chunk/:i: to integer! 8000 * sine/radians phase
+        phase: phase + (2 * pi * 330 / rate)
+    ]
+    audio/write stream chunk
+]
+
+fill                                     ;; prime it before starting
+hum: audio/play stream
+
+loop 200 [
+    ;; top it up whenever there is room for another chunk
+    if stream/available >= 2048 [fill]
+    wait 0.01
+]
+audio/stop/fade hum 0:0:0.5
+```
+`write` returns how many frames it actually took, which is fewer than offered
+when the buffer is full - so a feed loop can simply write what it has and look
+at the result. `stream/pending` says how much is still queued.
+
+A stream which runs dry plays silence rather than ending, so falling behind is
+heard as a gap and not as the sound stopping. The other side of that is that a
+stream never finishes by itself: it has to be stopped.
+
+#### Placing sounds in space
+Each sound has a position, the engine has a listener, and how quickly distance
+makes a sound quieter is up to you.
+```rebol
+sound: audio/load %assets/zblunk_02.wav
+sound/spatialize: true
+sound/x: 5.0                  ;; five units to the right of the listener
+
+sound/attenuation:  'inverse  ;; or none to switch attenuation off
+sound/rolloff:       1.0
+sound/min-distance:  1.0
+sound/max-distance: 20.0
+
+listener: device/listener
+listener/position: 0x0        ;; x and y; use /z for the third axis
+
+audio/play sound
+```
+
+#### Grouping sounds
+A group is a bus with its own volume, pan, pitch and effects, applied to every
+sound loaded into it.
+```rebol
+music: audio/make-group-node
+drums: audio/load/group %assets/drumloop.wav music
+
+music/volume: 50%             ;; affects the whole group
+audio/play drums
+wait 2
+audio/stop/fade music 0:0:1   ;; fades out everything in the group
+```
+
+#### Routing a sound through an effect
+```rebol
+echo: audio/make-delay-node 0:0:0.25 60%  ;; delay time and feedback decay
+sound/output: echo
+audio/play sound
 ```
 
 #### Using a waveform to play a morse sound
@@ -107,20 +227,17 @@ release device
 The C sources are compiled with the [Siskin builder](https://github.com/Siskin-framework/Builder)
 from `Rebol-MiniAudio.nest`, which defines one build target (_egg_) per platform.
 
-Two of the sources are generated from the declarative specification
+Two of the sources - and the reference sections at the bottom of this file -
+are generated from the declarative specification
 [`src/miniaudio.reb`](src/miniaudio.reb) and are not edited by hand:
 
 ```shell
-r3 -s tools/make-extension.r3 src/miniaudio.reb   ;; src/gen-miniaudio.h + src/gen-miniaudio.c
+r3 -s make-extension.r3 src/miniaudio.reb --readme
 ```
 
-The nest file runs that step itself, so a normal build needs nothing extra.
-The reference sections at the bottom of this file come from the same
-specification:
-
-```shell
-r3 -s tools/make-readme.r3 src/miniaudio.reb      ;; everything below "Extension commands"
-```
+That writes `src/gen-miniaudio.h`, `src/gen-miniaudio.c` and everything in
+this file below _Extension commands_. The nest file runs it itself, so a
+normal build needs nothing extra.
 
 ## Testing
 
@@ -241,6 +358,21 @@ Creates a data source node from raw PCM samples. The samples are used in place, 
 * `hz` `[integer!]`
 * `/format` Sample format of a binary (default is 2 = signed 16bit integer)
 * `frm` `[integer!]` Value betweem 1 - 5
+
+#### `make-stream-node` `:frames`
+Creates a data source node fed with samples while it plays, for audio generated as it is heard. Use `write` to keep it filled; a stream which runs dry plays silence rather than ending, so the sound keeps going and only the gap is heard.
+* `frames` `[integer! time!]` Capacity of the ring buffer (PCM frames or time)
+* `/channels` Number of interleaved channels (default is 1)
+* `count` `[integer!]`
+* `/rate` Samples per second (default is the engine's, else 48000)
+* `hz` `[integer!]`
+* `/format` The sample format (default is 2 = signed 16bit integer)
+* `frm` `[integer!]` Value betweem 1 - 5
+
+#### `write` `:stream` `:data`
+Writes PCM samples into a stream node. Returns the number of frames written, which is less than the input when the buffer is full. A vector's element type must match the stream's sample format.
+* `stream` `[handle!]` ma-stream handle
+* `data` `[vector! binary!]` Interleaved PCM samples
 
 #### `make-group-node`
 Creates a sound group node
@@ -408,6 +540,19 @@ Return true if sound ended
 /frames           integer!            none                          "Length in PCM frames"
 /duration         time!               none                          "Length as time"
 /cursor           integer!            [integer! time!]              "Playback position in PCM frames"
+```
+
+#### __MA-STREAM__ - MiniAudio ring buffer of PCM samples, written while it plays
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/format           word!               none                          "u8, s16, s24, s32 or f32"
+/channels         integer!            none                          "Number of interleaved channels"
+/sample-rate      integer!            integer!                      "Number of samples per second"
+/frames           integer!            none                          "Capacity in PCM frames"
+/duration         time!               none                          "Capacity as time"
+/pending          integer!            none                          "Frames written but not played yet"
+/available        integer!            none                          "Frames which can be written right now"
 ```
 
 #### __MA-DELAY__ - MiniAudio delay node

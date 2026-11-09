@@ -25,11 +25,12 @@
 #define ARG_Is_MANoise(n)     FRM_IS_HANDLE(n, Handle_MANoise)
 #define ARG_Is_MAWaveform(n)  FRM_IS_HANDLE(n, Handle_MAWaveform)
 #define ARG_Is_MAGroup(n)     FRM_IS_HANDLE(n, Handle_MAGroup)
+#define ARG_Is_MAStream(n)    FRM_IS_HANDLE(n, Handle_MAStream)
 #define ARG_MASound(n)        (ARG_Is_MASound(n)    ? (ma_sound*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MAGroup(n)        (ARG_Is_MAGroup(n)    ? (ma_sound_group*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MANoise(n)        (ARG_Is_MANoise(n)    ? (ma_noise*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MAWaveform(n)     (ARG_Is_MAWaveform(n) ? (ma_waveform*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
-#define ARG_Is_DataSource(n)  (RXA_TYPE(frm,n) == RXT_HANDLE && (RXA_HANDLE_TYPE(frm, n) == Handle_MANoise || RXA_HANDLE_TYPE(frm, n) == Handle_MAWaveform || RXA_HANDLE_TYPE(frm, n) == Handle_MABuffer) )
+#define ARG_Is_DataSource(n)  (RXA_TYPE(frm,n) == RXT_HANDLE && (RXA_HANDLE_TYPE(frm, n) == Handle_MANoise || RXA_HANDLE_TYPE(frm, n) == Handle_MAWaveform || RXA_HANDLE_TYPE(frm, n) == Handle_MABuffer || RXA_HANDLE_TYPE(frm, n) == Handle_MAStream) )
 #define ARG_DataSource(n)     (ma_data_source*)(RXA_HANDLE_CONTEXT(frm, n)->handle)
 
 #define ASSERT_CONTEXT()   if(!gContextReady) RETURN_ERROR("MiniAudio context is not initialized!");
@@ -325,6 +326,81 @@ int MAListener_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 	return PE_OK;
 }
 
+
+
+//== ma-stream ===============================================================//
+// A ring buffer of PCM samples, written from Rebol while the audio thread
+// reads it. ma_pcm_rb is lock free for exactly this one-producer /
+// one-consumer case, so no Rebol code ever runs in the audio callback.
+//
+// The buffer owns its memory, so there is no series to keep or lock - the
+// samples are copied in by `write`.
+
+int MAStream_free(void* hndl) {
+	if (hndl != NULL) {
+		debug_print("release stream: %p\n", hndl);
+		ma_pcm_rb_uninit((ma_pcm_rb*)hndl);
+	}
+	return 0;
+}
+
+int MAStream_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_pcm_rb *rb = (ma_pcm_rb*)hob->data;
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_FORMAT:
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_UNKNOWN + ma_pcm_rb_get_format(rb)];
+		break;
+	case W_MINIAUDIO_ARG_CHANNELS:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_pcm_rb_get_channels(rb);
+		break;
+	case W_MINIAUDIO_ARG_SAMPLE_RATE:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_pcm_rb_get_sample_rate(rb);
+		break;
+	case W_MINIAUDIO_ARG_FRAMES:
+		// one subbuffer, so its size is the whole capacity
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_pcm_rb_get_subbuffer_size(rb);
+		break;
+	case W_MINIAUDIO_ARG_DURATION:
+		*type = RXT_TIME;
+		arg->uint64 = ((ma_uint64)ma_pcm_rb_get_subbuffer_size(rb) * 1000000000)
+		            / ma_pcm_rb_get_sample_rate(rb);
+		break;
+	case W_MINIAUDIO_ARG_PENDING:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_pcm_rb_available_read(rb);
+		break;
+	case W_MINIAUDIO_ARG_AVAILABLE:
+		*type = RXT_INTEGER;
+		arg->uint64 = ma_pcm_rb_available_write(rb);
+		break;
+	default:
+		return PE_BAD_SELECT;
+	}
+	return PE_USE;
+}
+
+int MAStream_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_pcm_rb *rb = (ma_pcm_rb*)hob->data;
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_SAMPLE_RATE:
+		// changes the playback speed of what is already queued
+		if (*type != RXT_INTEGER) return PE_BAD_SET_TYPE;
+		if (arg->int64 <= 0) return PE_BAD_SET;
+		ma_pcm_rb_set_sample_rate(rb, (ma_uint32)arg->int64);
+		break;
+	default:
+		return PE_BAD_SET;
+	}
+	return PE_OK;
+}
 
 //== ma-buffer ===============================================================//
 // A buffer of raw PCM samples held in a Rebol vector or binary. miniaudio
@@ -1875,11 +1951,14 @@ COMMAND cmd_miniaudio_make_buffer_node(RXIFRM *frm, void *ctx) {
 	ma_format format;
 	ma_uint32 channels, rate, width;
 	ma_uint64 frames;
-	REBCNT index, available;
+	REBCNT index, samples;
+	size_t offset;
 	void *data;
 
-	channels = RXA_REF(frm, 2) ? (ma_uint32)ARG_Int32(3) : 1;
-	if (channels < 1) RETURN_ERROR("At least one channel is required.");
+	if (RXA_REF(frm, 2)) {
+		if (ARG_Int32(3) < 1) RETURN_ERROR("At least one channel is required.");
+		channels = (ma_uint32)ARG_Int32(3);
+	} else channels = 1;
 
 	if (RXA_REF(frm, 4)) {
 		if (ARG_Int32(5) <= 0) RETURN_ERROR("Invalid sample rate.");
@@ -1910,16 +1989,21 @@ COMMAND cmd_miniaudio_make_buffer_node(RXIFRM *frm, void *ctx) {
 	}
 
 	if (!ser) RETURN_ERROR("Invalid sample data.");
-	available = SERIES_TAIL(ser);
-	if (index >= available) RETURN_ERROR("No samples to play.");
-	available -= index;
+	if (index >= SERIES_TAIL(ser)) RETURN_ERROR("No samples to play.");
 
-	// a binary counts bytes, a vector counts elements
-	if (RXA_TYPE(frm, 1) == RXT_BINARY) available /= width;
-	frames = available / channels;
+	// a vector indexes elements, a binary indexes bytes - the two cannot
+	// share one `index * width`
+	if (RXA_TYPE(frm, 1) == RXT_VECTOR) {
+		offset  = (size_t)index * width;
+		samples = SERIES_TAIL(ser) - index;
+	} else {
+		offset  = index;
+		samples = (SERIES_TAIL(ser) - index) / width;
+	}
+	frames = samples / channels;
 	if (frames == 0) RETURN_ERROR("Not enough samples for one frame.");
 
-	data = SERIES_DATA(ser) + ((size_t)index * width);
+	data = SERIES_DATA(ser) + offset;
 
 	hob = RL_MAKE_HANDLE_CONTEXT(Handle_MABuffer);
 	if (hob == NULL) return RXR_NONE;
@@ -1941,6 +2025,118 @@ COMMAND cmd_miniaudio_make_buffer_node(RXIFRM *frm, void *ctx) {
 	RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXA_TYPE(frm, 1));
 
 	RETURN_HANDLE(hob);
+}
+
+
+COMMAND cmd_miniaudio_make_stream_node(RXIFRM *frm, void *ctx) {
+	REBHOB *hob;
+	ma_pcm_rb *rb;
+	ma_format format;
+	ma_uint32 channels, rate;
+	ma_uint64 frames;
+
+	if (RXA_REF(frm, 2)) {
+		if (ARG_Int32(3) < 1) RETURN_ERROR("At least one channel is required.");
+		channels = (ma_uint32)ARG_Int32(3);
+	} else channels = 1;
+
+	if (RXA_REF(frm, 4)) {
+		if (ARG_Int32(5) <= 0) RETURN_ERROR("Invalid sample rate.");
+		rate = (ma_uint32)ARG_Int32(5);
+	} else {
+		rate = pEngine ? ma_engine_get_sample_rate(pEngine->engine)
+		               : (ma_uint32)ma_standard_sample_rate_48000;
+	}
+
+	format = RXA_REF(frm, 6) ? (ma_format)ARG_Int32(7) : ma_format_s16;
+	if (format <= ma_format_unknown || format >= ma_format_count)
+		RETURN_ERROR("Invalid sample format.");
+
+	switch (RXA_TYPE(frm, 1)) {
+	case RXT_INTEGER:
+		if (RXA_INT64(frm, 1) < 0) RETURN_ERROR("Invalid buffer size.");
+		frames = RXA_UINT64(frm, 1);
+		break;
+	default: // RXT_TIME
+		if (RXA_TIME(frm, 1) < 0) RETURN_ERROR("Invalid buffer size.");
+		frames = (RXA_UINT64(frm, 1) * rate) / 1000000000;
+		break;
+	}
+	if (frames == 0)       RETURN_ERROR("The buffer must hold at least one frame.");
+	if (frames > 0xFFFFFFFF) RETURN_ERROR("The buffer is too large.");
+
+	hob = RL_MAKE_HANDLE_CONTEXT(Handle_MAStream);
+	if (hob == NULL) return RXR_NONE;
+	rb = (ma_pcm_rb*)hob->data;
+
+	if (MA_SUCCESS != ma_pcm_rb_init(format, channels, (ma_uint32)frames, NULL, NULL, rb))
+		RETURN_ERROR("Failed to initialize the stream buffer.");
+
+	// NOTE: like ma_audio_buffer_config_init, ma_pcm_rb_init does not take
+	// the sample rate - left at 0 the engine cannot resample.
+	ma_pcm_rb_set_sample_rate(rb, rate);
+
+	RETURN_HANDLE(hob);
+}
+
+COMMAND cmd_miniaudio_write(RXIFRM *frm, void *ctx) {
+	ma_pcm_rb *rb;
+	REBSER *ser;
+	REBCNT index, samples;
+	size_t offset;
+	ma_format format;
+	ma_uint32 channels, bpf, width, written = 0;
+	ma_uint64 frames;
+	REBYTE *src;
+
+	if (!ARG_Is_MAStream(1)) RETURN_ERROR("Expected a ma-stream handle.");
+	rb = (ma_pcm_rb*)(RXA_HANDLE_CONTEXT(frm, 1)->handle);
+
+	format   = ma_pcm_rb_get_format(rb);
+	channels = ma_pcm_rb_get_channels(rb);
+	width    = ma_get_bytes_per_sample(format);
+	bpf      = ma_get_bytes_per_frame(format, channels);
+
+	if (RXA_TYPE(frm, 2) == RXT_VECTOR) {
+		ma_format vformat = vector_sample_format(RXA_VECTOR_INFO(frm, 2));
+		if (vformat == ma_format_unknown)
+			RETURN_ERROR("Unsupported vector type - use uint8!, int16!, int32! or float32!.");
+		if (vformat != format)
+			RETURN_ERROR("Vector type does not match the stream's sample format.");
+		ser   = (REBSER*)RXA_VECTOR_SERIES(frm, 2);
+		index = RXA_VECTOR_INDEX(frm, 2);
+		if (!ser) RETURN_ERROR("Invalid sample data.");
+		// a vector indexes elements
+		offset  = (size_t)index * width;
+		samples = (index >= SERIES_TAIL(ser)) ? 0 : (SERIES_TAIL(ser) - index);
+	} else {
+		ser   = (REBSER*)RXA_SERIES(frm, 2);
+		index = RXA_INDEX(frm, 2);
+		if (!ser) RETURN_ERROR("Invalid sample data.");
+		// a binary indexes bytes
+		offset  = index;
+		samples = (index >= SERIES_TAIL(ser)) ? 0 : ((SERIES_TAIL(ser) - index) / width);
+	}
+
+	// nothing to write is not an error - a feed loop may well be idle
+	frames = samples / channels;
+	src = SERIES_DATA(ser) + offset;
+
+	while (frames > 0) {
+		void *dst;
+		ma_uint32 chunk = (frames > 0xFFFFFFFF) ? 0xFFFFFFFF : (ma_uint32)frames;
+		if (MA_SUCCESS != ma_pcm_rb_acquire_write(rb, &chunk, &dst)) break;
+		if (chunk == 0) break; // the buffer is full
+		COPY_MEM(dst, src, (size_t)chunk * bpf);
+		if (MA_SUCCESS != ma_pcm_rb_commit_write(rb, chunk)) break;
+		src     += (size_t)chunk * bpf;
+		frames  -= chunk;
+		written += chunk;
+	}
+
+	RXA_INT64(frm, 1) = written;
+	RXA_TYPE(frm, 1)  = RXT_INTEGER;
+	return RXR_VALUE;
 }
 
 COMMAND cmd_miniaudio_make_group_node(RXIFRM *frm, void *ctx) {
