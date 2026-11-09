@@ -232,6 +232,16 @@ Creates a delay (echo) sound node
 * `/wet` The mix level of the wet (delayed) sound
 * `w` `[decimal! percent!]`
 
+#### `make-buffer-node` `:data`
+Creates a data source node from raw PCM samples. The samples are used in place, so the series is locked against resizing for good - use `copy` if a mutable version is needed. A vector's element type decides the sample format: uint8! u8, int16! s16, int32! s32, float32! f32; any other vector type is refused. A binary is raw sample bytes and needs /format.
+* `data` `[vector! binary!]` Interleaved PCM samples
+* `/channels` Number of interleaved channels (default is 1)
+* `count` `[integer!]`
+* `/rate` Samples per second (default is the engine's, else 48000)
+* `hz` `[integer!]`
+* `/format` Sample format of a binary (default is 2 = signed 16bit integer)
+* `frm` `[integer!]` Value betweem 1 - 5
+
 #### `make-group-node`
 Creates a sound group node
 
@@ -385,6 +395,19 @@ Return true if sound ended
 /frequency        decimal!            decimal!                      "Signal frequency in hertzs"
 /format           word!               none                          "u8, s16, s24, s32 or f32"
 /type             word!               none                          "sine, square, triangle or sawtooth"
+```
+
+#### __MA-BUFFER__ - MiniAudio buffer of raw PCM samples
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/data             [vector! binary!]   none                          "The samples themselves, used in place"
+/format           word!               none                          "u8, s16, s24, s32 or f32"
+/channels         integer!            none                          "Number of interleaved channels"
+/sample-rate      integer!            none                          "Number of samples per second"
+/frames           integer!            none                          "Length in PCM frames"
+/duration         time!               none                          "Length as time"
+/cursor           integer!            [integer! time!]              "Playback position in PCM frames"
 ```
 
 #### __MA-DELAY__ - MiniAudio delay node

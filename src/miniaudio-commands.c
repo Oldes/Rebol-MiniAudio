@@ -29,7 +29,7 @@
 #define ARG_MAGroup(n)        (ARG_Is_MAGroup(n)    ? (ma_sound_group*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MANoise(n)        (ARG_Is_MANoise(n)    ? (ma_noise*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
 #define ARG_MAWaveform(n)     (ARG_Is_MAWaveform(n) ? (ma_waveform*)(RXA_HANDLE_CONTEXT(frm, n)->handle) : NULL)
-#define ARG_Is_DataSource(n)  (RXA_TYPE(frm,n) == RXT_HANDLE && (RXA_HANDLE_TYPE(frm, n) == Handle_MANoise || RXA_HANDLE_TYPE(frm, n) == Handle_MAWaveform) )
+#define ARG_Is_DataSource(n)  (RXA_TYPE(frm,n) == RXT_HANDLE && (RXA_HANDLE_TYPE(frm, n) == Handle_MANoise || RXA_HANDLE_TYPE(frm, n) == Handle_MAWaveform || RXA_HANDLE_TYPE(frm, n) == Handle_MABuffer) )
 #define ARG_DataSource(n)     (ma_data_source*)(RXA_HANDLE_CONTEXT(frm, n)->handle)
 
 #define ASSERT_CONTEXT()   if(!gContextReady) RETURN_ERROR("MiniAudio context is not initialized!");
@@ -318,6 +318,101 @@ int MAListener_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
 		case W_MINIAUDIO_ARG_Z: pos.z = (float)arg->dec64; break;
 		}
 		ma_engine_listener_set_position(engine, listener->index, pos.x, pos.y, pos.z);
+		break;
+	default:
+		return PE_BAD_SET;
+	}
+	return PE_OK;
+}
+
+
+//== ma-buffer ===============================================================//
+// A buffer of raw PCM samples held in a Rebol vector or binary. miniaudio
+// reads the samples in place, so the series must outlive the handle: it is
+// kept in the handle's block (GC) and locked, like the encoded data of a
+// sound loaded from a binary.
+
+// Maps a Rebol vector element type onto a miniaudio sample format.
+// Returns ma_format_unknown for a vector this extension cannot play -
+// int8!, int64!, uint16!, uint32!, uint64! and float64! have no counterpart,
+// and so does s24, which no Rebol vector type can hold.
+static ma_format vector_sample_format(REBCNT info) {
+	switch (RXI_VECTOR_TYPE(info)) {
+	case VTUI08: return ma_format_u8;
+	case VTSI16: return ma_format_s16;
+	case VTSI32: return ma_format_s32;
+	case VTSF32: return ma_format_f32;
+	}
+	return ma_format_unknown;
+}
+
+int MABuffer_free(void* hndl) {
+	REBHOB *hob = (REBHOB*)hndl;
+	ma_audio_buffer_uninit((ma_audio_buffer*)hob->data);
+	if (hob->series) {
+		RESET_SERIES(hob->series);
+		hob->series = NULL;
+	}
+	return 0;
+}
+
+int MABuffer_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_audio_buffer *buffer = (ma_audio_buffer*)hob->data;
+	ma_uint64 cursor;
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_DATA:
+		if (hob->series) {
+			*type = RL_GET_VALUE(hob->series, 0, arg);
+		}
+		else *type = RXT_NONE;
+		break;
+	case W_MINIAUDIO_ARG_FORMAT:
+		*type = RXT_WORD;
+		arg->int64 = Miniaudio_type_words[W_MINIAUDIO_TYPE_UNKNOWN + buffer->ref.format];
+		break;
+	case W_MINIAUDIO_ARG_CHANNELS:
+		*type = RXT_INTEGER;
+		arg->uint64 = buffer->ref.channels;
+		break;
+	case W_MINIAUDIO_ARG_SAMPLE_RATE:
+		*type = RXT_INTEGER;
+		arg->uint64 = buffer->ref.sampleRate;
+		break;
+	case W_MINIAUDIO_ARG_FRAMES:
+		*type = RXT_INTEGER;
+		arg->uint64 = buffer->ref.sizeInFrames;
+		break;
+	case W_MINIAUDIO_ARG_DURATION:
+		*type = RXT_TIME;
+		arg->uint64 = (buffer->ref.sizeInFrames * 1000000000) / buffer->ref.sampleRate;
+		break;
+	case W_MINIAUDIO_ARG_CURSOR:
+		*type = RXT_INTEGER;
+		ma_audio_buffer_get_cursor_in_pcm_frames(buffer, &cursor);
+		arg->uint64 = cursor;
+		break;
+	default:
+		return PE_BAD_SELECT;
+	}
+	return PE_USE;
+}
+
+int MABuffer_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg) {
+	ma_audio_buffer *buffer = (ma_audio_buffer*)hob->data;
+	ma_uint64 frame;
+	word = RL_FIND_WORD(Miniaudio_arg_words, word);
+
+	switch (word) {
+	case W_MINIAUDIO_ARG_CURSOR:
+		switch (*type) {
+		case RXT_INTEGER: frame = (ma_uint64)arg->int64; break;
+		case RXT_TIME:    frame = (arg->uint64 * buffer->ref.sampleRate) / 1000000000; break;
+		default: return PE_BAD_SET_TYPE;
+		}
+		if (arg->int64 < 0 || frame > buffer->ref.sizeInFrames) return PE_BAD_SET;
+		ma_audio_buffer_seek_to_pcm_frame(buffer, frame);
 		break;
 	default:
 		return PE_BAD_SET;
@@ -1771,6 +1866,83 @@ COMMAND cmd_miniaudio_make_delay_node(RXIFRM *frm, void *ctx) {
 	return RXR_VALUE;
 }
 
+
+COMMAND cmd_miniaudio_make_buffer_node(RXIFRM *frm, void *ctx) {
+	REBHOB *hob;
+	REBSER *ser;
+	ma_audio_buffer_config config;
+	ma_audio_buffer *buffer;
+	ma_format format;
+	ma_uint32 channels, rate, width;
+	ma_uint64 frames;
+	REBCNT index, available;
+	void *data;
+
+	channels = RXA_REF(frm, 2) ? (ma_uint32)ARG_Int32(3) : 1;
+	if (channels < 1) RETURN_ERROR("At least one channel is required.");
+
+	if (RXA_REF(frm, 4)) {
+		if (ARG_Int32(5) <= 0) RETURN_ERROR("Invalid sample rate.");
+		rate = (ma_uint32)ARG_Int32(5);
+	} else {
+		// MA_DEFAULT_SAMPLE_RATE lives in the implementation section, so the
+		// public standard rate is used when no device is open yet
+		rate = pEngine ? ma_engine_get_sample_rate(pEngine->engine)
+		               : (ma_uint32)ma_standard_sample_rate_48000;
+	}
+
+	if (RXA_TYPE(frm, 1) == RXT_VECTOR) {
+		if (RXA_REF(frm, 6))
+			RETURN_ERROR("/format is only for binary data - a vector carries its own.");
+		ser    = (REBSER*)RXA_VECTOR_SERIES(frm, 1);
+		index  = RXA_VECTOR_INDEX(frm, 1);
+		format = vector_sample_format(RXA_VECTOR_INFO(frm, 1));
+		if (format == ma_format_unknown)
+			RETURN_ERROR("Unsupported vector type - use uint8!, int16!, int32! or float32!.");
+		width  = RXI_VECTOR_BITS(RXA_VECTOR_INFO(frm, 1)) / 8;
+	} else {
+		ser    = (REBSER*)RXA_SERIES(frm, 1);
+		index  = RXA_INDEX(frm, 1);
+		format = RXA_REF(frm, 6) ? (ma_format)ARG_Int32(7) : ma_format_s16;
+		if (format <= ma_format_unknown || format >= ma_format_count)
+			RETURN_ERROR("Invalid sample format.");
+		width  = ma_get_bytes_per_sample(format);
+	}
+
+	if (!ser) RETURN_ERROR("Invalid sample data.");
+	available = SERIES_TAIL(ser);
+	if (index >= available) RETURN_ERROR("No samples to play.");
+	available -= index;
+
+	// a binary counts bytes, a vector counts elements
+	if (RXA_TYPE(frm, 1) == RXT_BINARY) available /= width;
+	frames = available / channels;
+	if (frames == 0) RETURN_ERROR("Not enough samples for one frame.");
+
+	data = SERIES_DATA(ser) + ((size_t)index * width);
+
+	hob = RL_MAKE_HANDLE_CONTEXT(Handle_MABuffer);
+	if (hob == NULL) return RXR_NONE;
+	buffer = (ma_audio_buffer*)hob->data;
+
+	config = ma_audio_buffer_config_init(format, channels, frames, data, NULL);
+	// NOTE: ma_audio_buffer_config_init does NOT take the sample rate, even
+	// though the config has one - left at 0 the engine cannot resample.
+	config.sampleRate = rate;
+
+	// _init, not _init_copy: the samples stay in the Rebol series
+	if (MA_SUCCESS != ma_audio_buffer_init(&config, buffer))
+		RETURN_ERROR("Failed to initialize the audio buffer.");
+
+	LOCK_SERIES(ser);
+
+	// keep the series alive and reachable as `data`
+	hob->series = RL_MAKE_BLOCK(1);
+	RL_SET_VALUE(hob->series, 0, RXA_ARG(frm, 1), RXA_TYPE(frm, 1));
+
+	RETURN_HANDLE(hob);
+}
+
 COMMAND cmd_miniaudio_make_group_node(RXIFRM *frm, void *ctx) {
 	ma_sound_group *group;
 
@@ -1889,8 +2061,3 @@ COMMAND cmd_miniaudio_endq(RXIFRM *frm, void *ctx) {
 	if (sound == NULL) return RXR_FALSE;
 	return ma_sound_at_end(sound) ? RXR_TRUE : RXR_FALSE;
 }
-
-
-
-
-

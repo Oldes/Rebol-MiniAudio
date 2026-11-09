@@ -72,19 +72,15 @@ get-field: func [hndl [handle!] name [word!]][ hndl/(name) ]
 	label  [string!]
 	hndl   [any-type!]
 	fields [block!] "name [types] pairs"
-	/local name types
 ][
 	unless handle? :hndl [
 		--skip-- ajoin [label " accessors (no handle)"]
 		exit
 	]
 	foreach [name types] fields [
-		;; `find types type? ...` would match by datatype instead of by value,
-		;; hence type?/word against a plain block of type words.
-		--test-- ajoin [label "/" name]
-			compose/deep [
-				to logic! find [(types)] type?/word get-field (hndl) (to lit-word! name)
-			]
+		--test-- ajoin [label "/" name] [
+			did find types type?/word get-field hndl name
+		]
 	]
 ]
 
@@ -141,6 +137,7 @@ noise: sound: utf-sound: wave: delay: bus: drums: tone: device: none
 foreach name [
 	version get-devices init-playback load play pause start stop fade seek
 	make-noise-node make-waveform-node make-delay-node make-group-node
+	make-buffer-node
 	volume volume? pan pan? pitch pitch? looping looping? end?
 ][
 	--test-- ajoin ["command " name] compose [command? get in audio (to lit-word! name)]
@@ -233,6 +230,111 @@ if handle? :noise [
 	]
 	--rejects-- "ma-noise/nonsense" [noise/nonsense]
 	--rejects-- "ma-noise/type write" [noise/type: 'pink]
+]
+
+;;=============================================================================
+group "Buffer of raw samples (needs no engine)"
+;;=============================================================================
+
+;; A second of a 440 Hz sine, generated in Rebol.
+rate: 44100
+tone-samples: make vector! reduce ['int16! rate]
+repeat i rate [
+	tone-samples/:i: to integer! 12000 * sine/radians (2 * pi * 440 * (i - 1) / rate)
+]
+
+--test-- "make-buffer-node from an int16 vector" [
+	handle? buf: audio/make-buffer-node/rate tone-samples rate
+]
+--reads-- "ma-buffer" buf [
+	data        [vector! binary! none!]
+	format      [word!]
+	channels    [integer!]
+	sample-rate [integer!]
+	frames      [integer!]
+	duration    [time!]
+	cursor      [integer!]
+]
+--test-- "the buffer describes the samples it was given" [
+	all [
+		buf/format      = 's16
+		buf/channels    = 1
+		buf/sample-rate = rate
+		buf/frames      = rate
+		about? to decimal! buf/duration 1.0 0.001
+		buf/cursor      = 0
+	]
+]
+--test-- "the vector is kept as the buffer's data" [
+	same? tone-samples buf/data
+]
+--test-- "the samples are used in place, so they are locked" [
+	all [
+		error? try [append tone-samples 0]
+		error? try [clear tone-samples]
+		;; but still writable - that is what makes live tweaking possible
+		integer? tone-samples/1: 0
+	]
+]
+--test-- "buffer cursor round trip" [
+	buf/cursor: 22050
+	all [
+		buf/cursor = 22050
+		;; the same position written as time
+		(buf/cursor: 0:0:0.5  buf/cursor = 22050)
+	]
+]
+--test-- "a cursor past the end is refused" [error? try [buf/cursor: rate + 1]]
+--rejects-- "ma-buffer/frames write" [buf/frames: 10]
+--rejects-- "ma-buffer/nonsense" [buf/nonsense]
+
+;; Every vector type which maps onto a miniaudio sample format.
+foreach [spec word] [
+	[uint8!   64] u8
+	[int16!   64] s16
+	[int32!   64] s32
+	[float32! 64] f32
+][
+	--test-- ajoin ["buffer format " word] [
+		b: audio/make-buffer-node make vector! spec
+		word = b/format
+	]
+]
+;; ...and the ones which do not. s24 has no Rebol vector type at all.
+foreach spec [
+	[int8!   64] [int64!  64]
+	[uint16! 64] [uint32! 64] [uint64! 64]
+	[float64! 64]
+][
+	--test-- ajoin ["vector " mold spec " is refused"] [
+		error? try [audio/make-buffer-node make vector! spec]
+	]
+]
+
+--test-- "make-buffer-node from a binary" [
+	b: audio/make-buffer-node/format #{0000 0100 0200 0300} audio/format_s16
+	all [handle? b  b/format = 's16  b/frames = 4]
+]
+--test-- "a binary defaults to s16" [
+	b: audio/make-buffer-node #{0000 0100 0200 0300}
+	all [b/format = 's16  b/frames = 4]
+]
+--test-- "channels divide the frame count" [
+	b: audio/make-buffer-node/channels make vector! [int16! 64] 2
+	all [b/channels = 2  b/frames = 32]
+]
+--test-- "/format is refused for a vector" [
+	error? try [audio/make-buffer-node/format make vector! [int16! 8] audio/format_f32]
+]
+--test-- "an empty vector is refused" [
+	error? try [audio/make-buffer-node make vector! [int16! 0]]
+]
+--test-- "an empty binary is refused" [error? try [audio/make-buffer-node #{}]]
+--test-- "a bad sample rate is refused" [
+	error? try [audio/make-buffer-node/rate make vector! [int16! 8] 0]
+]
+--test-- "zero channels are refused" [
+	error? try [audio/make-buffer-node/channels make vector! [int16! 8] 0]
 ]
 
 unless playback-index [summary]
@@ -791,6 +893,12 @@ either quick? [
 	][
 		--skip-- "loop playback (the sound did not load)"
 	]
+
+	--test-- "a generated buffer can be played" [
+		handle? beep: audio/play buf
+	]
+	wait 1.2
+	--test-- "the buffer advanced while playing" [buf/cursor > 0]
 
 	;; A data source node played as a sound, modulated while it plays.
 	--test-- "a waveform node can be played" [

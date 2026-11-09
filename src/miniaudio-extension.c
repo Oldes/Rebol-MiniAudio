@@ -35,6 +35,7 @@ REBCNT Handle_MAWaveform = 0;
 REBCNT Handle_MADelay    = 0;
 REBCNT Handle_MAGroup    = 0;
 REBCNT Handle_MAListener = 0;
+REBCNT Handle_MABuffer   = 0;
 
 
 // One-time setup, called from the generated `_init` command once the word
@@ -66,6 +67,13 @@ int Miniaudio_Init(void) {
 	spec.get_path  = MAListener_get_path;
 	spec.set_path  = MAListener_set_path;
 	Handle_MAListener = RL_REGISTER_HANDLE_SPEC(cb_cast("ma-listener"), &spec);
+
+	spec.size      = sizeof(ma_audio_buffer);
+	spec.flags     = HANDLE_REQUIRES_HOB_ON_FREE;
+	spec.free      = MABuffer_free;
+	spec.get_path  = MABuffer_get_path;
+	spec.set_path  = MABuffer_set_path;
+	Handle_MABuffer = RL_REGISTER_HANDLE_SPEC(cb_cast("ma-buffer"), &spec);
 
 	spec.size      = sizeof(ma_noise);
 	spec.flags     = 0;
