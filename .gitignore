@@ -12,3 +12,4 @@
 !/demo.r3
 !/Entitlements.plist
 */gen-*
+!/make-*.r3

@@ -3,9 +3,9 @@
 ;-  (/uOu\)  https://github.com/Siskin-framework/Builder/                       
 ;-===="="=======================================================================
 
-github: mackron/miniaudio 0.11.25
+github: mackron/miniaudio 0.11.26
 
-version: 0.11.25
+version: 0.11.26
 
 include:  %miniaudio/
 
@@ -85,10 +85,7 @@ define: REB_EXT
 ;; Produces %src/gen-miniaudio.h and %src/gen-miniaudio.c from the
 ;; declarative specification. The args must be a block - the generator
 ;; reads the spec path as `first system/script/args`.
-do %make-extension.r3 [%src/miniaudio.reb]
-
-;- keep the README's reference sections in sync with the same spec ----
-do %make-readme.r3 [%src/miniaudio.reb]
+do %make-extension.r3 [%src/miniaudio.reb --readme]
 
 files: [
 	%src/miniaudio.c

@@ -28,7 +28,7 @@ extern int gContextReady;
 // the entry point in both build modes; safe to call repeatedly.
 int MiniAudio_Startup(void);
 
-// Handle callbacks - registered by Register_MiniAudio_Handles() in
+// Handle callbacks - registered by Miniaudio_Init() in
 // miniaudio-extension.c, implemented in miniaudio-commands.c.
 int Common_mold(REBHOB *hob, REBSER *ser);
 
@@ -60,9 +60,7 @@ int MAListener_free(void* hndl);
 int MAListener_get_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 int MAListener_set_path(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 
-#ifndef REB_EXT
-// Embedded build only - called from host-main.c under INCLUDE_EXT_MINIAUDIO.
-void OS_Init_Ext_MiniAudio(void);
-#endif
+// NOTE: Miniaudio_Init() and the embedded OS_Init_Ext_Miniaudio() are
+// declared by the generated header - do not declare them here.
 
 #endif // MINIAUDIO_EXT_H

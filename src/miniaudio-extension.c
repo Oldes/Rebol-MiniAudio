@@ -11,6 +11,10 @@
 //
 //   REB_EXT defined ... standalone miniaudio-<os>-<arch>.rebx
 //   REB_EXT absent .... compiled into the host, registered at startup
+//
+// Setup lives in Miniaudio_Init(), which the generated `_init` command
+// calls when the module body evaluates - the same in both modes. The
+// embedded entry point OS_Init_Ext_Miniaudio() is generated too.
 // =============================================================================
 
 #include "gen-miniaudio.h"
@@ -21,8 +25,6 @@
 // Embedded builds use host-lib.c's definition, declared extern by reb-lib.h.
 RL_LIB *RL;
 #endif
-
-static char *init_block = MINIAUDIO_EXT_INIT_CODE;
 
 // Symbols of the registered handle types. Declared in the generated header
 // (from the spec's `c-header:`), defined here.
@@ -35,9 +37,12 @@ REBCNT Handle_MAGroup    = 0;
 REBCNT Handle_MAListener = 0;
 
 
-// Registers all handle types. Must run in BOTH build modes - the path
-// accessors of the handles are the extension's main interface.
-static void Register_MiniAudio_Handles(void) {
+// One-time setup, called from the generated `_init` command once the word
+// lists are mapped. Registers every handle type - the path accessors are
+// the extension's main interface - and brings up the audio context.
+//
+// Returns plain TRUE/FALSE, NOT an RXR_* code.
+int Miniaudio_Init(void) {
 	REBHSP spec;
 	spec.mold = Common_mold;
 
@@ -89,6 +94,11 @@ static void Register_MiniAudio_Handles(void) {
 	spec.get_path  = MAGroup_get_path;
 	spec.set_path  = MAGroup_set_path;
 	Handle_MAGroup = RL_REGISTER_HANDLE_SPEC(cb_cast("ma-group"), &spec);
+
+	// A failure here is not fatal - the module still loads and the commands
+	// which need the context report a proper Rebol error instead.
+	MiniAudio_Startup();
+	return TRUE;
 }
 
 
@@ -117,11 +127,10 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 		return 0;
 	}
 
-	Register_MiniAudio_Handles();
-	// A failure here is not fatal - the module still loads and the commands
-	// which need the context report a proper Rebol error instead.
-	MiniAudio_Startup();
-	return init_block;
+	// Handle registration and the audio context are set up by
+	// Miniaudio_Init(), which the generated `_init` command calls when the
+	// module body evaluates.
+	return MINIAUDIO_EXT_INIT_CODE;
 }
 
 RXIEXT int RX_Quit(int opts) {
@@ -138,27 +147,6 @@ RXIEXT int RX_Abi(void) {
 // dispatcher is generated into gen-miniaudio.c.
 RXIEXT int RX_Call(int cmd, RXIFRM *frm, void *ctx) {
 	return Miniaudio_RX_Call(cmd, frm, ctx);
-}
-
-#else
-
-/***********************************************************************
-**  Embedded into the host
-***********************************************************************/
-
-// Called from host-main.c under #ifdef INCLUDE_EXT_MINIAUDIO.
-// No version or alignment check: same binary, true by construction.
-/***********************************************************************
-**
-*/	RL_API void OS_Init_Ext_MiniAudio(void)
-/*
-**	Initialize embedded MiniAudio extension
-**
-***********************************************************************/
-{
-	RL = RL_Extend(b_cast(init_block), (RXICAL)&Miniaudio_RX_Call);
-	Register_MiniAudio_Handles();
-	MiniAudio_Startup();
 }
 
 #endif
