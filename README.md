@@ -6,11 +6,20 @@
 
 # Rebol/MiniAudio
 
-[MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.14.1 and higher)
+[MiniAudio](https://github.com/mackron/miniaudio) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.22.5 and higher)
+
+Plays sounds - from files, from memory, or from samples computed in Rebol -
+on its own audio thread, so the interpreter stays free while they play.
+Sounds can be grouped, faded, routed through effects, placed in 3D space and
+generated as they are heard.
+
+Everything is reached through _handles_ whose fields are read and written as
+paths: `sound/volume`, `sound/is-playing`, `device/sample-rate`. The full list
+is in the reference at the bottom of this file.
 
 ## Usage
 ```rebol
-audio: import miniaudio
+audio: import 'miniaudio
 
 ;; list all available devices:
 print audio/get-devices
@@ -46,6 +55,19 @@ audio/play :device/resources/1
 wait 1
 ```
 
+#### Playing a sound held in memory
+Encoded audio does not have to come from a file - a `binary!` works too, so a
+sound may be played straight out of a zip, a database or a HTTP response.
+```rebol
+data:  read %assets/zblunk_02.wav
+sound: audio/load data
+audio/play sound
+```
+The data is decoded where it lies rather than copied, so the series is locked
+against resizing for as long as the session lasts - `append data #{00}` will
+error. Use `copy data` if a mutable version is needed. Note that `play` itself
+takes a file or a handle: encoded data goes through `load` first.
+
 #### Using a data-source node...
 ```rebol
 a: 0
@@ -70,6 +92,104 @@ with audio [
         wait 0.005                                                                                            
     ]
 ]
+```
+
+#### Playing your own samples
+A vector of samples can be played directly. Its element type decides the
+sample format - `int16!` is `s16`, `float32!` is `f32`, `uint8!` is `u8` and
+`int32!` is `s32` - so there is nothing else to declare.
+```rebol
+;; one second of a 440 Hz sine wave...
+rate:    44100
+samples: make vector! reduce ['int16! rate]
+repeat i rate [
+    samples/:i: to integer! 12000 * sine/radians (2 * pi * 440 * (i - 1) / rate)
+]
+
+buffer: audio/make-buffer-node/rate samples rate
+print ["buffer:" buffer/frames "frames," buffer/duration]
+audio/play buffer
+```
+Like a loaded binary, the samples are used in place and the vector is locked
+against resizing. Individual samples may still be rewritten, so a playing
+buffer can be reshaped under the playhead.
+
+A `binary!` of raw sample bytes works as well, but then the format has to be
+given: `audio/make-buffer-node/format data audio/format_s16`.
+
+#### Generating audio as it plays
+A buffer is a fixed block of samples. For audio which is computed as it is
+heard, a _stream_ is a ring buffer: Rebol writes into one end while the audio
+thread reads from the other.
+```rebol
+rate:   device/sample-rate
+stream: audio/make-stream-node 0:0:0.5   ;; half a second of slack
+chunk:  make vector! [int16! 2048]
+phase:  0.0
+
+fill: does [
+    repeat i 2048 [
+        chunk/:i: to integer! 8000 * sine/radians phase
+        phase: phase + (2 * pi * 330 / rate)
+    ]
+    audio/write stream chunk
+]
+
+fill                                     ;; prime it before starting
+hum: audio/play stream
+
+loop 200 [
+    ;; top it up whenever there is room for another chunk
+    if stream/available >= 2048 [fill]
+    wait 0.01
+]
+audio/stop/fade hum 0:0:0.5
+```
+`write` returns how many frames it actually took, which is fewer than offered
+when the buffer is full - so a feed loop can simply write what it has and look
+at the result. `stream/pending` says how much is still queued.
+
+A stream which runs dry plays silence rather than ending, so falling behind is
+heard as a gap and not as the sound stopping. The other side of that is that a
+stream never finishes by itself: it has to be stopped.
+
+#### Placing sounds in space
+Each sound has a position, the engine has a listener, and how quickly distance
+makes a sound quieter is up to you.
+```rebol
+sound: audio/load %assets/zblunk_02.wav
+sound/spatialize: true
+sound/x: 5.0                  ;; five units to the right of the listener
+
+sound/attenuation:  'inverse  ;; or none to switch attenuation off
+sound/rolloff:       1.0
+sound/min-distance:  1.0
+sound/max-distance: 20.0
+
+listener: device/listener
+listener/position: 0x0        ;; x and y; use /z for the third axis
+
+audio/play sound
+```
+
+#### Grouping sounds
+A group is a bus with its own volume, pan, pitch and effects, applied to every
+sound loaded into it.
+```rebol
+music: audio/make-group-node
+drums: audio/load/group %assets/drumloop.wav music
+
+music/volume: 50%             ;; affects the whole group
+audio/play drums
+wait 2
+audio/stop/fade music 0:0:1   ;; fades out everything in the group
+```
+
+#### Routing a sound through an effect
+```rebol
+echo: audio/make-delay-node 0:0:0.25 60%  ;; delay time and feedback decay
+sound/output: echo
+audio/play sound
 ```
 
 #### Using a waveform to play a morse sound
@@ -102,6 +222,34 @@ dot dot dot dash dash dash dot dot dot
 release device
 ```
 
+## Building
+
+The C sources are compiled with the [Siskin builder](https://github.com/Siskin-framework/Builder)
+from `Rebol-MiniAudio.nest`, which defines one build target (_egg_) per platform.
+
+Two of the sources - and the reference sections at the bottom of this file -
+are generated from the declarative specification
+[`src/miniaudio.reb`](src/miniaudio.reb) and are not edited by hand:
+
+```shell
+r3 -s make-extension.r3 src/miniaudio.reb --readme
+```
+
+That writes `src/gen-miniaudio.h`, `src/gen-miniaudio.c` and everything in
+this file below _Extension commands_. The nest file runs it itself, so a
+normal build needs nothing extra.
+
+## Testing
+
+```shell
+r3 test.r3            ;; full run, plays audio
+r3 test.r3 --quick    ;; skip the audible, timed parts
+r3 test.r3 --null     ;; allow the dummy device, for machines without audio
+```
+
+`test.r3` asserts and exits non-zero on failure; [`demo.r3`](demo.r3) is the
+same ground covered as a readable walk-through instead.
+
 ## Extension commands:
 
 
@@ -124,8 +272,8 @@ Initialize a playback device
 * `word` `[word!]` The function's name
 
 #### `load` `:sound`
-Loads a file and returns sound's handle
-* `sound` `[file!]`
+Loads a file or encoded audio data and returns sound's handle. A binary is used in place and so is locked against resizing for good - use `copy` if a mutable version is needed.
+* `sound` `[file! binary!]`
 * `/group` Group of sounds which have their own effect processing and volume control
 * `node` `[handle!]` ma-group handle
 
@@ -146,10 +294,10 @@ Pause sound playback
 * `sound` `[handle!]`
 
 #### `start` `:handle`
-Start sound or device playback
-* `handle` `[handle!]` ma-sound or ma-engine handle
+Start sound, group or device playback. A sound is restarted from its beginning (use /seek to start elsewhere) and its looping state is taken from /loop, so a plain start turns looping off.
+* `handle` `[handle!]` ma-sound, ma-group or ma-engine handle
 * `/loop` Turn looping on (only for sounds)
-* `/seek` Starting position
+* `/seek` Starting position (only for sounds)
 * `frames` `[integer! time!]` PCM frames or time
 * `/fade` Fade in the sound
 * `in` `[integer! time!]` PCM frames or time
@@ -157,10 +305,10 @@ Start sound or device playback
 * `time` `[integer! time!]` PCM frames or time
 
 #### `stop` `:handle`
-Stop sound or device playback
-* `handle` `[handle!]` ma-sound or ma-engine handle
+Stop sound, group or device playback
+* `handle` `[handle!]` ma-sound, ma-group or ma-engine handle
 * `/fade`
-* `out` `[integer! time!]` PCM frames or time (only for sounds)
+* `out` `[integer! time!]` PCM frames or time (not for the device)
 
 #### `fade` `:sound` `:frames` `:start` `:end`
 Fade sound volume
@@ -181,7 +329,7 @@ Creates a noise node for generating random noise
 * `amplitude` `[decimal!]` The peak amplitude of the noise
 * `/seed` Optional random seed
 * `val` `[integer!]`
-* `/format` The sample format (default is 2 = signed 16bit float)
+* `/format` The sample format (default is 2 = signed 16bit integer)
 * `frm` `[integer!]` Value betweem 1 - 5
 
 #### `make-waveform-node` `:type` `:amplitude` `:frequency`
@@ -189,7 +337,7 @@ Creates a sound waveform node
 * `type` `[integer!]` The type of waveform to generate (0 - 3)
 * `amplitude` `[decimal!]` The peak amplitude of the waveform
 * `frequency` `[decimal!]` The frequency of the waveform in Hertz (Hz)
-* `/format` The sample format (default is 2 = signed 16bit float)
+* `/format` The sample format (default is 2 = signed 16bit integer)
 * `frm` `[integer!]` Value betweem 1 - 5
 
 #### `make-delay-node` `:delay` `:decay`
@@ -200,6 +348,31 @@ Creates a delay (echo) sound node
 * `d` `[decimal! percent!]`
 * `/wet` The mix level of the wet (delayed) sound
 * `w` `[decimal! percent!]`
+
+#### `make-buffer-node` `:data`
+Creates a data source node from raw PCM samples. The samples are used in place, so the series is locked against resizing for good - use `copy` if a mutable version is needed. A vector's element type decides the sample format: uint8! u8, int16! s16, int32! s32, float32! f32; any other vector type is refused. A binary is raw sample bytes and needs /format.
+* `data` `[vector! binary!]` Interleaved PCM samples
+* `/channels` Number of interleaved channels (default is 1)
+* `count` `[integer!]`
+* `/rate` Samples per second (default is the engine's, else 48000)
+* `hz` `[integer!]`
+* `/format` Sample format of a binary (default is 2 = signed 16bit integer)
+* `frm` `[integer!]` Value betweem 1 - 5
+
+#### `make-stream-node` `:frames`
+Creates a data source node fed with samples while it plays, for audio generated as it is heard. Use `write` to keep it filled; a stream which runs dry plays silence rather than ending, so the sound keeps going and only the gap is heard.
+* `frames` `[integer! time!]` Capacity of the ring buffer (PCM frames or time)
+* `/channels` Number of interleaved channels (default is 1)
+* `count` `[integer!]`
+* `/rate` Samples per second (default is the engine's, else 48000)
+* `hz` `[integer!]`
+* `/format` The sample format (default is 2 = signed 16bit integer)
+* `frm` `[integer!]` Value betweem 1 - 5
+
+#### `write` `:stream` `:data`
+Writes PCM samples into a stream node. Returns the number of frames written, which is less than the input when the buffer is full. A vector's element type must match the stream's sample format.
+* `stream` `[handle!]` ma-stream handle
+* `data` `[vector! binary!]` Interleaved PCM samples
 
 #### `make-group-node`
 Creates a sound group node
@@ -252,7 +425,10 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/gain-db          decimal!            [integer! decimal!]           "Sound volume in decibels (the same value as volume, logarithmic)"
+/fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
+/pan-mode         word!               word!                         "balance (default, attenuates one side) or pan (moves the sound across)"
 /pitch            decimal!            decimal!                      "Sound pitch"
 /position         pair!               pair!                         "Sound position (x and y for now) relative to the listener"
 /cursor           integer!            [integer! time!]              "Sound playback position in PCM frames"
@@ -269,9 +445,17 @@ Return true if sound ended
 /x                decimal!            [integer! decimal!]           "Sound X position"
 /y                decimal!            [integer! decimal!]           "Sound Y position"
 /z                decimal!            [integer! decimal!]           "Sound Z position"
-/source           [file! handle!]     none                          "Sound source as a loaded file or data source node"
+/source           [file! binary! handle!]none                          "Sound source as a loaded file, encoded data or a data source node"
+/rolloff          decimal!            [integer! decimal!]           "How quickly the sound gets quieter with distance"
+/min-distance     decimal!            [integer! decimal!]           "Distance below which no attenuation is applied"
+/max-distance     decimal!            [integer! decimal!]           "Distance above which no further attenuation is applied"
+/min-gain         decimal!            [integer! decimal!]           "Lower bound of the attenuated gain"
+/max-gain         decimal!            [integer! decimal!]           "Upper bound of the attenuated gain"
+/doppler-factor   decimal!            [integer! decimal!]           "Strength of the doppler effect, 0 disables it"
+/attenuation      [word! none!]       [word! none!]                 "inverse, linear, exponential or none to disable it"
+/positioning      word!               word!                         "absolute or relative (to the listener)"
 /outputs          integer!            none                          "Number of output buses"
-/output           handle!             [handle! none!]               "Output bus node"
+/output           none                [handle! none!]               "Output bus node (write only)"
 ```
 
 #### __MA-GROUP__ - MiniAudio sound group
@@ -279,11 +463,13 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Sound volume"
+/gain-db          decimal!            [integer! decimal!]           "Sound volume in decibels (the same value as volume, logarithmic)"
+/fade-volume      decimal!            none                          "Volume of a running fade, 1.0 when no fade is active"
 /pan              decimal!            decimal!                      "Stereo panning (from -1.0 to 1.0)"
+/pan-mode         word!               word!                         "balance (default, attenuates one side) or pan (moves the sound across)"
 /pitch            decimal!            decimal!                      "Sound group pitch"
 /position         pair!               pair!                         "Sound group position (x and y for now) relative to the listener"
-/time             time!               time!                         "Sound group playback position as time"
-/duration         time!               none                          "Sound group duration in time"
+/time             time!               none                          "Time the group has been playing"
 /sample-rate      integer!            none                          "Number of samples per second"
 /spatialize       logic!              logic!                        "3D spatialization state"
 /is-playing       logic!              logic!                        "Whether sound is playing"
@@ -293,7 +479,7 @@ Return true if sound ended
 /y                decimal!            [integer! decimal!]           "Sound group Y position"
 /z                decimal!            [integer! decimal!]           "Sound group Z position"
 /outputs          integer!            none                          "Number of output buses"
-/output           handle!             [handle! none!]               "Output bus node"
+/output           none                [handle! none!]               "Output bus node (write only)"
 /resources        block!              none                          "Used group resources (sounds, nodes..)"
 ```
 
@@ -302,12 +488,26 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /volume           decimal!            [integer! decimal! percent!]  "Global volume"
-/cursor           integer!            [integer! time!]              "Engine playback position in PCM frames"
+/frames           integer!            [integer! time!]              "Engine playback position in PCM frames"
 /time             time!               time!                         "Engine playback position as time"
 /resources        block!              none                          "Used engine resources (sounds, nodes..)"
 /channels         integer!            none                          "Number of output channels"
 /sample-rate      integer!            none                          "Ouput device sample rate per second"
 /gain-db          decimal!            [integer! decimal!]           "The amplification factor in decibels"
+/listener         handle!             none                          "The first listener as a ma-listener handle"
+/listeners        block!              none                          "All listeners of the engine as ma-listener handles"
+```
+
+#### __MA-LISTENER__ - MiniAudio spatialization listener
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/index            integer!            none                          "Index of the listener in its engine"
+/enabled          logic!              logic!                        "Whether the listener is enabled"
+/position         pair!               pair!                         "Listener position (x and y)"
+/x                decimal!            [integer! decimal!]           "Listener X position"
+/y                decimal!            [integer! decimal!]           "Listener Y position"
+/z                decimal!            [integer! decimal!]           "Listener Z position"
 ```
 
 #### __MA-NOISE__ - MiniAudio noise generator
@@ -315,18 +515,44 @@ Return true if sound ended
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /amplitude        decimal!            decimal!                      "Maximum value of the noise signal"
-/format           word!               none                          "f32, s16, s24, s32, u8"
+/format           word!               none                          "u8, s16, s24, s32 or f32"
 /type             word!               none                          "white, pink or brownian"
 ```
 
-#### __MA-WAWEFORM__ - MiniAudio sine, square, triangle and sawtooth waveforms generator
+#### __MA-WAVEFORM__ - MiniAudio sine, square, triangle and sawtooth waveforms generator
 
 ```rebol
 ;Refinement       Gets                Sets                          Description
 /amplitude        decimal!            decimal!                      "Signal amplitude"
 /frequency        decimal!            decimal!                      "Signal frequency in hertzs"
-/format           word!               none                          "f32, s16, s24, s32, u8"
+/format           word!               none                          "u8, s16, s24, s32 or f32"
 /type             word!               none                          "sine, square, triangle or sawtooth"
+```
+
+#### __MA-BUFFER__ - MiniAudio buffer of raw PCM samples
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/data             [vector! binary!]   none                          "The samples themselves, used in place"
+/format           word!               none                          "u8, s16, s24, s32 or f32"
+/channels         integer!            none                          "Number of interleaved channels"
+/sample-rate      integer!            none                          "Number of samples per second"
+/frames           integer!            none                          "Length in PCM frames"
+/duration         time!               none                          "Length as time"
+/cursor           integer!            [integer! time!]              "Playback position in PCM frames"
+```
+
+#### __MA-STREAM__ - MiniAudio ring buffer of PCM samples, written while it plays
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/format           word!               none                          "u8, s16, s24, s32 or f32"
+/channels         integer!            none                          "Number of interleaved channels"
+/sample-rate      integer!            integer!                      "Number of samples per second"
+/frames           integer!            none                          "Capacity in PCM frames"
+/duration         time!               none                          "Capacity as time"
+/pending          integer!            none                          "Frames written but not played yet"
+/available        integer!            none                          "Frames which can be written right now"
 ```
 
 #### __MA-DELAY__ - MiniAudio delay node
@@ -350,10 +576,8 @@ type_sawtooth: 3
 
 ;; Sample data formats
 format_u8:     1
-format_s16:    2  ; Seems to be the most widely supported format.
-format_s24:    3  ; Tightly packed. 3 bytes per sample.
+format_s16:    2  ;; Seems to be the most widely supported format.
+format_s24:    3  ;; Tightly packed. 3 bytes per sample.
 format_s32:    4
 format_f32:    5
-
-white-noise: does [play noise-node 0 0.5]
 ```

@@ -3,9 +3,9 @@
 ;-  (/uOu\)  https://github.com/Siskin-framework/Builder/                       
 ;-===="="=======================================================================
 
-github: @miniaudio
+github: mackron/miniaudio 0.11.26
 
-version: 0.11.23
+version: 0.11.26
 
 include:  %miniaudio/
 
@@ -67,7 +67,7 @@ target-armv7: [
 
 #if macOS? [
 	sign: on
-	entitlements: %miniaudio/Entitlements.plist
+	entitlements: %Entitlements.plist
 	define: DISABLE_MANUAL_TARGET_ORDER_BUILD_WARNING
 	define: MA_NO_RUNTIME_LINKING
 	define: MA_ENABLE_ONLY_SPECIFIC_BACKENDS
@@ -78,14 +78,20 @@ target-armv7: [
 	cflags: -fPIC
 ]
 
-;- generate main extension header --------------------------------
-do %src/miniaudio-rebol-extension.r3 
+;- extension sources are built out of the Rebol tree -------------
+define: REB_EXT
+
+;- generate the extension header and command table ---------------
+;; Produces %src/gen-miniaudio.h and %src/gen-miniaudio.c from the
+;; declarative specification. The args must be a block - the generator
+;; reads the spec path as `first system/script/args`.
+do %make-extension.r3 [%src/miniaudio.reb --readme]
 
 files: [
 	%src/miniaudio.c
 	%src/miniaudio-commands.c
-	%src/miniaudio-commands-table.c
-	%src/miniaudio-rebol-extension.c
+	%src/gen-miniaudio.c
+	%src/miniaudio-extension.c
 ]
 
 eggs: [
