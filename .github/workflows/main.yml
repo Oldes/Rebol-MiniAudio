@@ -19,32 +19,21 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.17.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 32bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x86.rebx
-
-    - name: Prepare 32bit Rebol/MiniAudio extension
-      run:  MOVE ./build/miniaudio-windows-x86.rebx ./miniaudio-windows-x86.rebx
+      run: ./siskin Rebol-MiniAudio.nest -o ./miniaudio-windows-x86.rebx --msvc miniaudio-windows-x86.rebx
 
     - name: Build 64bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-windows-x64.rebx
-
-    - name: Prepare 64bit Rebol/MiniAudio extension
-      run:  MOVE ./build/miniaudio-windows-x64.rebx ./miniaudio-windows-x64.rebx
-
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.20.0
-      with:
-        product: Bulk
+      run: ./siskin Rebol-MiniAudio.nest -o ./miniaudio-windows-x64.rebx --msvc miniaudio-windows-x64.rebx
 
     - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+      run:  ./siskin --script ci-test.r3
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-MiniAudio-CI-windows-${{github.run_id}}
         path: ./*.rebx
@@ -53,31 +42,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.17.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 64bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-linux-x64
-
-    - name: Prepare 64bit Rebol MiniAudio extension
-      run:  mv ./build/miniaudio-linux-x64.so ./miniaudio.rebx
-
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.20.0
-      with:
-        product: Bulk
+      run: ./siskin Rebol-MiniAudio.nest -o ./miniaudio-linux-x64.rebx --gzip miniaudio-linux-x64
 
     - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+      run:  ./siskin --script ci-test.r3
 
-    - name: Compress 64bit Rebol/MiniAudio extension
-      run:  |
-        mv ./miniaudio.rebx ./miniaudio-linux-x64.rebx
-        gzip -9 ./miniaudio-linux-x64.rebx
-
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-MiniAudio-CI-linux-${{github.run_id}}
         path: ./*.gz
@@ -86,29 +62,18 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.17.0
+      uses: oldes/install-siskin@v0.23.3
 
     - name: Build 64bit Rebol/MiniAudio extension
-      run: ./siskin Rebol-MiniAudio.nest miniaudio-macos-x64
-
-    - name: Prepare 64bit Rebol MiniAudio extension
-      run:  mv ./build/miniaudio-macos-x64.dylib ./miniaudio-macos-x64.rebx
-
-    - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.20.0
-      with:
-        product: Bulk
+      run: ./siskin Rebol-MiniAudio.nest -o ./miniaudio-macos-x64.rebx --gzip miniaudio-macos-x64
 
     - name: Minimal Rebol/MiniAudio extension test
-      run:  ./rebol3 ci-test.r3
+      run:  ./siskin --script ci-test.r3
 
-    - name: Compress 64bit Rebol/MiniAudio extension
-      run:  gzip -9 ./miniaudio-macos-x64.rebx
-
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: Rebol-MiniAudio-CI-macos-${{github.run_id}}
         path: ./*.gz
@@ -117,7 +82,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout repository
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@v6
 #
 #      - name: Login to Docker Hub
 #        uses: docker/login-action@v2
@@ -136,7 +101,7 @@ jobs:
 #          sudo mv ./build/miniaudio-haiku-x86.so ./miniaudio-haiku-x86.rebx
 #          sudo gzip -9 ./miniaudio-haiku-x86.rebx
 #
-#      - uses: actions/upload-artifact@v4
+#      - uses: actions/upload-artifact@v6
 #        with:
 #          name: Rebol-MiniAudio-CI-${{github.run_id}}
 #          path: ./miniaudio-*.gz
@@ -145,7 +110,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout repository
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@v6
 #
 #      - name: Login to Docker Hub
 #        uses: docker/login-action@v2
@@ -164,7 +129,7 @@ jobs:
 #          sudo mv ./build/miniaudio-haiku-x64.so ./miniaudio-haiku-x64.rebx
 #          sudo gzip -9 ./miniaudio-haiku-x64.rebx
 #
-#      - uses: actions/upload-artifact@v4
+#      - uses: actions/upload-artifact@v6
 #        with:
 #          name: Rebol-MiniAudio-CI-${{github.run_id}}
 #          path: ./miniaudio-*.gz
