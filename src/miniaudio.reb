@@ -1,7 +1,7 @@
 REBOL [
 	Title:   "Rebol MiniAudio Extension"
 	Name:    miniaudio
-	Version: 0.11.25
+	Version: 0.11.26
 	Needs:   3.22.5
 	Author:  @Oldes
 	License: MIT
